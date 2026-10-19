@@ -406,7 +406,7 @@ const SAFE = [
 const LINKS = [["tenki.jp 長期預報","https://tenki.jp/long/"],["氣象廳 兩週氣溫預報","https://www.data.jma.go.jp/cpd/twoweek/"],["氣象廳 札幌管區氣象台","https://www.jma-net.go.jp/sapporo/"],["Windy","https://www.windy.com/"],["北海道開發局 道路資訊","http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm"]];
 
 /* ---------- 狀態與工具 ---------- */
-const APP_VER = "2026-10-19 23:40";
+const APP_VER = "2026-10-19 23:55";
 const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["talk","會話","話"],["todo","待辦","✓"],["sos","緊急","!"]];
 const $ = s => document.querySelector(s);
 const st = {tab:"trip", day:"ov", stop:"asa"};
@@ -545,11 +545,12 @@ async function loadEat(){
       const di = jstNow().dow;
       list = (d.places||[]).map(p => { const loc = p.location||{}; return {src:"g", name:(p.displayName&&p.displayName.text)||"未命名", type:(p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text)||"", rating:p.rating, n:p.userRatingCount, open:p.currentOpeningHours ? !!p.currentOpeningHours.openNow : true, hours:((p.regularOpeningHours||{}).weekdayDescriptions||[])[(di+6)%7]||"", web:p.websiteUri||"", tel:p.nationalPhoneNumber||"", resv:p.reservable, map:p.googleMapsUri||mapsUrl((p.displayName||{}).text||""), m:loc.latitude!=null ? hav(L.lat,L.lon,loc.latitude,loc.longitude) : 0}; }).sort((a,b) => (b.rating||0)-(a.rating||0));
     } else {
-      const q = '[out:json][timeout:20];nwr["amenity"~"^(restaurant|cafe|fast_food|ramen)$"]["name"](around:1500,' + L.lat + ',' + L.lon + ');out center tags 120;';
+      const q = '[out:json][timeout:12];nwr["amenity"~"^(restaurant|cafe|fast_food)$"]["name"](around:1000,' + L.lat + ',' + L.lon + ');out center tags 80;';
+      const one = async hst => { const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 12000);
+        try{ const r = await fetch(hst + "?data=" + encodeURIComponent(q), {signal:ctl.signal}); if(!r.ok) throw new Error("HTTP " + r.status); const j = await r.json(); if(!Array.isArray(j.elements)) throw new Error("格式不符"); return j; } finally { clearTimeout(to); } };
       let d = null, last = "";
-      for(const hst of ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"]){
-        try{ const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000); const r = await fetch(hst + "?data=" + encodeURIComponent(q), {signal:ctl.signal}); clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status); d = await r.json(); break; }catch(e){ last = e && e.message ? e.message : "連線失敗"; }
-      }
+      try{ d = await Promise.any(["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"].map(one)); }
+      catch(e){ last = (e && e.errors && e.errors[0] && e.errors[0].message) || "連線逾時"; }
       if(!d || !Array.isArray(d.elements)) throw new Error(last || "格式不符");
       list = d.elements.map(e => { const t = e.tags||{}, la = e.lat!=null?e.lat:(e.center&&e.center.lat), lo = e.lon!=null?e.lon:(e.center&&e.center.lon); if(la==null) return null; const nm = t.name||t["name:ja"]; return {src:"o", name:nm, type:({restaurant:"餐廳",cafe:"咖啡",fast_food:"速食",ramen:"拉麵"})[t.amenity]||"", cuisine:t.cuisine||"", open:osmOpen(t.opening_hours), hours:t.opening_hours||"", web:t.website||t["contact:website"]||"", tel:t.phone||t["contact:phone"]||"", resv:t.reservation, map:mapsUrl(nm), m:hav(L.lat,L.lon,la,lo)}; }).filter(Boolean).sort((a,b) => ((b.open===true)-(a.open===true)) || (a.m-b.m));
     }
@@ -572,6 +573,7 @@ function eatCard(){
   if(live.gpsErr) h += '<p class="small" style="color:var(--warn)">' + esc(live.gpsErr) + '</p>';
   h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="chip on" data-eatref="1">' + (live.eatBusy?'搜尋中…':'立即更新') + '</button><button class="chip' + (eatUi.only?' on':'') + '" data-eatonly="1" style="min-width:0">只看營業中</button><span class="small">' + (key ? '資料來源 Google Places（含星級）' : '資料來源 OpenStreetMap（無星級）') + '</span></div>';
   if(live.eatErr) h += '<p class="small" style="color:var(--warn);margin-top:8px">' + esc(live.eatErr) + '</p>';
+  if(live.eatErr) h += '<div class="links" style="margin-top:8px"><a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent("現在營業中 レストラン " + L.name) + '" target="_blank" rel="noopener"><b>Google 地圖：' + esc(L.name) + '營業中的餐廳（有星級）</b></a></div>';
   if(c) h += '<p class="small" style="margin-top:8px">' + timeAgo(c.t) + '搜尋，' + esc(L.name) + '附近。</p>';
   h += '<details style="margin-top:8px"><summary class="small"><b>' + (key ? '已設定 Google 金鑰' : '進階（選用）：Google 金鑰') + '</b></summary><p class="small" style="margin-top:6px">在 Google Cloud 開通 Places API (New)，建立 API 金鑰並限制只能從 phillyjc.github.io 使用，貼在這裡。金鑰只存在這支手機。沒設定時只能用 OpenStreetMap，沒有星級，營業時間也不一定完整。</p><div style="display:flex;gap:6px;margin-top:6px"><input id="eat_key" class="inp" placeholder="API 金鑰" value="' + esc(key) + '" style="flex:1;min-width:0"><button class="chip on" data-eatkey="save" style="min-width:48px">儲存</button>' + (key ? '<button class="chip" data-eatkey="clear" style="min-width:48px">清除</button>' : '') + '</div></details></div>';
   if(c){
