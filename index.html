@@ -557,7 +557,6 @@ const TAGS = [["gas","⛽","加油"],["bf","🍳","早餐"],["lu","🍱","午餐
 const jget = (k,d) => { try { const v = JSON.parse(sget(k)); return v==null?d:v; } catch(e){ return d; } };
 const fmt = n => Math.round(n).toLocaleString("en-US");
 const costSt = {f:{day:null,tag:"di",amt:"",cur:"JPY",note:"",edit:null}};
-function rates(){ return Object.assign({JPY:0.2051,USD:31,TWD:1}, jget("hk26-rate",{})); }
 function fixedState(){ return jget("hk26-fixed",{}); }
 function fixedTwd(f,R,fs){ const o = fs[f[0]]||{}; const a = o.amt!==undefined ? o.amt : f[4]; return a*R[f[3]]; }
 function fixedPaid(f,fs){ const o = fs[f[0]]||{}; return o.paid!==undefined ? !!o.paid : f[5]===1; }
@@ -617,7 +616,8 @@ function viewCost(){
     '<p class="small">記完帳按「複製備份」，貼到手機備忘錄。頁面清空時，把備份貼回下面的框，按「還原」。</p>' +
     '<textarea id="bk" class="inp" rows="4" style="width:100%;margin-top:6px;font-size:13px">' + esc(costSt.bk!==undefined ? costSt.bk : code) + '</textarea>' +
     '<div style="display:flex;gap:8px;margin-top:8px"><button class="chip on" data-bkcopy="1" style="flex:1">複製備份</button><button class="chip" data-bkrestore="1" style="flex:1">還原</button></div><p class="small" id="bkmsg" style="margin-top:6px"></p></div>';
-  h += '<div class="card"><h2>匯率設定</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label>1 日圓 =</label><input id="r_jpy" class="inp" inputmode="decimal" value="' + R.JPY + '" style="width:80px"><label>1 美元 =</label><input id="r_usd" class="inp" inputmode="decimal" value="' + R.USD + '" style="width:80px"><label>台幣</label></div><p class="small" style="margin-top:6px">已記的花費以記帳當下的匯率換算，之後改匯率只影響已訂明細與之後的記錄。資料只存在這支手機的瀏覽器。</p></div>';
+  h += fxCard(R);
+  setTimeout(() => loadFx(false), 0);
   return h;
 }
 
@@ -724,6 +724,7 @@ function wxCard(){
   h += '</div>';
   if(live.wxErr) h += '<p class="small" style="color:var(--warn);margin-top:8px">' + esc(live.wxErr) + '，目前顯示的是舊資料。</p>';
   h += '<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="chip" data-wxref="1">' + (live.wxBusy?'更新中…':'立即更新') + '</button><span class="small">資料來源 Open-Meteo，每 10 分鐘自動更新。</span></div></div>';
+  h += outfitCard(d);
   h += iceCard(d);
   const R = roadRisk(d), lab = ["低","中","高"][R.lv], cls = R.lv===0?"free":"";
   h += '<div class="card"><div class="hot"><h2>行車提醒與即時路況連結</h2><span class="tag ' + cls + '">結冰／降雪風險：' + lab + '</span></div><ul class="tl" style="margin-top:6px">';
@@ -792,8 +793,45 @@ document.addEventListener("click", e => {
 
 /* ---------- 緊急 ---------- */
 const tel = n => 'tel:' + n.replace(/[^+\d#]/g, "").replace(/#/g, "%23");
+function sayLang(t){ return /[ぁ-んァ-ン]/.test(t) ? "ja-JP" : /[A-Za-z]{3}/.test(t) ? "en-US" : "zh-TW"; }
+function sayBtn(t){ const clean = t.replace(/[〇○]+/g, "").replace(/\s+/g, " ").trim(); return '<button class="lnk say" data-say="' + encodeURIComponent(clean) + '" aria-label="播放發音" style="font-size:22px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">🔊</button>'; }
+function sayIt(text, btn){
+  const msg = $("#saymsg");
+  if(!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined"){ if(msg) msg.textContent = "這個瀏覽器不支援發音。"; return; }
+  try{
+    const syn = window.speechSynthesis; syn.cancel();
+    const u = new SpeechSynthesisUtterance(text), lang = sayLang(text); u.lang = lang; u.rate = 0.85; u.volume = 1;
+    const v = syn.getVoices().filter(x => x.lang && x.lang.replace("_","-").toLowerCase().indexOf(lang.slice(0,2).toLowerCase()) === 0);
+    const pick = v.find(x => x.lang.replace("_","-").toLowerCase() === lang.toLowerCase()) || v[0]; if(pick) u.voice = pick;
+    if(msg) msg.textContent = (pick || lang!=="ja-JP") ? "" : "手機沒有找到日語語音。到「設定 > 輔助使用 > 語音內容 > 聲音」下載日文聲音。";
+    syn.speak(u);
+  }catch(e){ if(msg) msg.textContent = "發音失敗。"; }
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-say]"); if(!b) return; sayIt(decodeURIComponent(b.dataset.say), b); });
+const PH = {
+ "119":[["救急です。","Kyūkyū desu.","要叫救護車。"],["火事です。","Kaji desu.","發生火災。"],["〇〇で人が倒れています。","○○ de hito ga taorete imasu.","○○ 有人倒下了。"],["息をしていません。","Iki o shite imasen.","沒有呼吸。"],["けが人がいます。","Keganin ga imasu.","有人受傷。"],["場所は〇〇です。","Basho wa ○○ desu.","地點在 ○○。（可念地圖座標或看板名字）"],["私は台湾人の旅行者です。","Watashi wa Taiwan-jin no ryokōsha desu.","我是台灣來的旅客。"]],
+ "110":[["交通事故です。","Kōtsū jiko desu.","發生交通事故。"],["けが人がいます。／けが人はいません。","Keganin ga imasu. / Keganin wa imasen.","有人受傷。／沒有人受傷。"],["鹿にぶつかりました。","Shika ni butsukarimashita.","撞到鹿了。"],["レンタカーです。","Rentakā desu.","是租來的車。"],["パスポートをなくしました。","Pasupōto o nakushimashita.","護照弄丟了。"],["財布を盗まれました。","Saifu o nusumaremashita.","錢包被偷了。"],["場所は〇〇です。","Basho wa ○○ desu.","地點在 ○○。"]],
+ "118":[["人が湖に落ちました。","Hito ga mizūmi ni ochimashita.","有人掉進湖裡。"],["船が動かなくなりました。","Fune ga ugokanaku narimashita.","船動不了了。"],["場所は〇〇です。","Basho wa ○○ desu.","地點在 ○○。"]],
+ "050-3816-2787":[["中文就可以，這條線有中文服務。","","可以直接用中文說。"],["病院を探しています。","Byōin o sagashite imasu.","我在找醫院。（也可直接用中文說：我想找附近的醫院）"]],
+ "0570-000-911":[["Hello, I'm a tourist from Taiwan. I need emergency help.","","你好，我是台灣來的旅客，需要緊急協助。"],["I need an ambulance / a hospital.","","我需要救護車／醫院。"],["I had a car accident.","","我發生了車禍。"]],
+ "+81-11-222-2930":[["中文直接說就可以。","","可以直接用中文說明。"],["我的護照遺失了／被偷了，需要補發。","","向札幌分處說明。"]],
+ "+81-80-1460-2568":[["中文直接說就可以。","","僅限急難重大事件，例如重大事故、重傷、遭搶劫、災害。"],["說明：姓名、護照號碼、所在位置、發生什麼事、電話。","","先把這五項準備好再撥。"]],
+ "+886-800-085-095":[["中文直接說就可以。","","外交部旅外國人急難救助專線，從日本撥打時前面不要多加 0。"]],
+ "0123-45-8756":[["レンタカーのトラブルです。","Rentakā no toraburu desu.","租車出狀況。"],["事故を起こしました。けが人はいません。","Jiko o okoshimashita. Keganin wa imasen.","出了事故，沒有人受傷。"],["車が動かなくなりました。","Kuruma ga ugokanaku narimashita.","車子發不動了。"],["タイヤがパンクしました。","Taiya ga panku shimashita.","爆胎了。"],["雪で返却が遅れそうです。","Yuki de henkyaku ga okuresō desu.","因為下雪，還車會晚到。"],["予約番号は〇〇です。","Yoyaku bangō wa ○○ desu.","預約編號是 ○○。（編號在文件裡）"]],
+ "#9910":[["道路に落石があります。","Dōro ni rakuseki ga arimasu.","路上有落石。"],["雪で道が通れません。","Yuki de michi ga tōremasen.","因為雪，路不能通行。"],["国道〇号の〇〇付近です。","Kokudō ○-gō no ○○ fukin desu.","在國道 ○ 號 ○○ 附近。"]],
+ "#8139":[["車が動きません。救援をお願いします。","Kuruma ga ugokimasen. Kyūen o onegai shimasu.","車子不能動，請派救援。"],["JAF の会員ではありません。","JAF no kaiin dewa arimasen.","我不是 JAF 會員。"],["場所は〇〇です。","Basho wa ○○ desu.","地點在 ○○。"]],
+ "hotel":[["遅れそうです。〇時ごろに着きます。","Okuresō desu. ○-ji goro ni tsukimasu.","會晚到，大約 ○ 點到。"],["雪で到着が遅れます。","Yuki de tōchaku ga okuremasu.","因為下雪，會晚到。"],["予約している〇〇です。","Yoyaku shite iru ○○ desu.","我是有訂房的 ○○。"],["具合が悪いので、病院を教えてください。","Guai ga warui node, byōin o oshiete kudasai.","我身體不舒服，請告訴我醫院在哪。"],["駐車場の場所を教えてください。","Chūshajō no basho o oshiete kudasai.","請告訴我停車場在哪。"]]
+};
+const HOTELS = ["+81-166-25-8811","+81-134-31-6111","+81-142-75-1085","+81-138-59-2231"];
+function phrasesHtml(list, open){
+  if(!list) return '';
+  let h = '<details' + (open ? ' open' : '') + ' style="margin:0 0 10px;border:1px dashed var(--line);border-radius:10px;padding:6px 10px"><summary style="cursor:pointer"><b>怎麼說</b></summary><div style="margin-top:6px">';
+  list.forEach(p => { h += '<div style="padding:5px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center"><div><div style="font-size:17px;font-weight:600">' + esc(p[0]) + '</div>' + (p[1] ? '<div class="small">' + esc(p[1]) + '</div>' : '') + '<div class="small">' + esc(p[2]) + '</div></div>' + sayBtn(p[0]) + '</div>'; });
+  return h + '</div></details>';
+}
 function sosBtn(num, label, sub, big){
-  return '<a href="' + tel(num) + '" class="sosb' + (big?' big':'') + '"><span class="sn">' + esc(num) + '</span><span class="sl"><b>' + esc(label) + '</b>' + (sub ? '<br><span class="small">' + esc(sub) + '</span>' : '') + '</span><span class="sc">撥打</span></a>';
+  const list = PH[num] || (HOTELS.indexOf(num) >= 0 ? PH.hotel : null);
+  return '<a href="' + tel(num) + '" class="sosb' + (big?' big':'') + '"><span class="sn">' + esc(num) + '</span><span class="sl"><b>' + esc(label) + '</b>' + (sub ? '<br><span class="small">' + esc(sub) + '</span>' : '') + '</span><span class="sc">撥打</span></a>' + phrasesHtml(list, big);
 }
 const GUIDE = [
  ["🚗","交通事故（含租車）",["先停車、開危險警示燈，人離開車道到安全處（高速公路要到護欄外）。","有人受傷：打 119。","不論輕重都要打 110 報警，沒有警方的事故證明，保險和租車賠償可能無法處理。","打電話給租車公司（Times），照他們的指示做。","拍照：車損、現場、對方車牌，記下對方姓名和電話。不要私下和解，不要先付錢。","等警察到場，不要自己離開。"]],
@@ -806,7 +844,7 @@ const GUIDE = [
 ];
 function viewSos(){
   const my = sget("hk26-sos") || "";
-  let h = '<div class="note" style="border-color:var(--warn)"><b>緊急時：</b>先確保人身安全，再打電話。日本的急救電話在日本境內<b>免費、不用加區碼</b>，用手機直接撥即可。</div>';
+  let h = '<p class="small" id="saymsg" style="color:var(--warn);margin:0"></p><div class="note" style="border-color:var(--warn)"><b>緊急時：</b>先確保人身安全，再打電話。日本的急救電話在日本境內<b>免費、不用加區碼</b>，用手機直接撥即可。<br>句子旁的 🔊 會用手機的語音念出來，可以直接給對方聽（記得開聲音、不要靜音）。</div>';
   h += '<div class="card"><h2>最緊急（日本境內）</h2><div style="margin-top:8px">' +
     sosBtn("119","救護車、火災","說「救急です」（kyūkyū desu，要救護車）、「火事です」（kaji desu，火災）。再說地點。",1) +
     sosBtn("110","警察、交通事故、事件","說「事故です」（jiko desu，事故）或「事件です」（jiken desu）。",1) +
@@ -830,6 +868,9 @@ function viewSos(){
     sosBtn("+81-134-31-6111","小樽 Stay\'s OTARU","11/7") +
     sosBtn("+81-142-75-1085","洞爺湖 大洞爺村大和附樓","11/8") +
     sosBtn("+81-138-59-2231","函館 湯濱溫泉酒店","11/9、11/10") + '</div><p class="small" style="margin-top:6px">札幌與支笏湖的電話我沒有查到，請看訂房確認信。</p></div>';
+  h += '<div class="card"><h2>常用句子</h2><details><summary style="cursor:pointer"><b>點開看（日語＋讀音＋中文）</b></summary><div style="margin-top:6px">';
+  [["助けてください。","Tasukete kudasai.","請幫幫我。"],["救急車を呼んでください。","Kyūkyūsha o yonde kudasai.","請幫我叫救護車。"],["警察を呼んでください。","Keisatsu o yonde kudasai.","請幫我叫警察。"],["気分が悪いです。","Kibun ga warui desu.","我不舒服。"],["頭が痛いです。／お腹が痛いです。","Atama ga itai desu. / Onaka ga itai desu.","頭痛。／肚子痛。"],["けがをしました。","Kega o shimashita.","我受傷了。"],["アレルギーがあります。","Arerugī ga arimasu.","我有過敏。"],["病院に行きたいです。","Byōin ni ikitai desu.","我想去醫院。"],["英語（中国語）が話せる人をお願いします。","Eigo (Chūgokugo) ga hanaseru hito o onegai shimasu.","請找會說英語（中文）的人。"],["ゆっくり話してください。","Yukkuri hanashite kudasai.","請說慢一點。"],["もう一度お願いします。","Mō ichido onegai shimasu.","請再說一次。"],["ここはどこですか。","Koko wa doko desu ka.","這裡是哪裡？"],["住所を教えてください。","Jūsho o oshiete kudasai.","請告訴我地址。"],["電話を貸してください。","Denwa o kashite kudasai.","請借我用電話。"]].forEach(p => { h += '<div style="padding:5px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center"><div><div style="font-size:17px;font-weight:600">' + esc(p[0]) + '</div><div class="small">' + esc(p[1]) + '</div><div class="small">' + esc(p[2]) + '</div></div>' + sayBtn(p[0]) + '</div>'; });
+  h += '</div></details></div>';
   h += '<div class="card"><h2>情境怎麼辦</h2>';
   GUIDE.forEach(g => { h += '<details style="border-top:1px solid var(--line);padding:8px 0"><summary style="cursor:pointer;font-size:16px"><b>' + g[0] + ' ' + g[1] + '</b></summary><ol style="margin:8px 0 0;padding-left:22px">'; g[2].forEach(x => { h += '<li style="margin:4px 0">' + esc(x) + '</li>'; }); h += '</ol></details>'; });
   h += '</div>';
@@ -846,6 +887,125 @@ document.addEventListener("click", e => {
   }, () => { box.textContent = "無法取得定位（可能被拒絕或沒有訊號）。請說附近的店名、路名或看板。"; }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
 });
 document.addEventListener("input", e => { if(e.target.id==="sosmy"){ sset("hk26-sos", e.target.value); const m = $("#sosmsg"); if(m) m.textContent = "已儲存在這支手機。"; } });
+
+/* ---------- 即時匯率 ---------- */
+const fx = {busy:false, fail:0, err:""};
+function rates(){
+  const base = {JPY:0.2051, USD:31, TWD:1};
+  if(sget("hk26-rate-manual")==="1") return Object.assign(base, jget("hk26-rate",{}));
+  const lv = jget("hk26-rate-live", null); if(lv && lv.JPY>0 && lv.USD>0) return Object.assign(base, {JPY:lv.JPY, USD:lv.USD});
+  return base;
+}
+async function loadFx(force){
+  if(sget("hk26-rate-manual")==="1" && !force) return;
+  const lv = jget("hk26-rate-live", null);
+  if(!force && lv && Date.now()-lv.t < 6*3600e3) return;
+  if(!force && fx.fail && Date.now()-fx.fail < 60000) return;
+  if(fx.busy) return; fx.busy = true; fx.err = ""; if(st.tab==="cost") render(true);
+  try{
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+    const r = await fetch("https://open.er-api.com/v6/latest/TWD", {signal:ctl.signal}); clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json(); if(!d.rates || !(d.rates.JPY>0) || !(d.rates.USD>0)) throw new Error("格式不符");
+    sset("hk26-rate-live", JSON.stringify({JPY:1/d.rates.JPY, USD:1/d.rates.USD, t:Date.now(), src:(d.time_last_update_unix||0)*1000})); sset("hk26-rate-manual","0"); fx.fail = 0;
+  }catch(e){ fx.fail = Date.now(); fx.err = "無法取得即時匯率（" + (e && e.message ? e.message : "連線失敗") + "），目前使用" + (jget("hk26-rate-live",null) ? "上次的" : "預設") + "匯率。"; }
+  fx.busy = false; if(st.tab==="cost") render(true);
+}
+function fxCard(R){
+  const man = sget("hk26-rate-manual")==="1", lv = jget("hk26-rate-live", null);
+  let h = '<div class="card"><div class="hot"><h2>匯率</h2><span class="tag ' + (man?'':'free') + '">' + (man ? '手動' : (lv ? '即時' : '預設')) + '</span></div>';
+  h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><label>1 日圓 =</label><input id="r_jpy" class="inp" inputmode="decimal" value="' + (Math.round(R.JPY*10000)/10000) + '" style="width:84px"><label>1 美元 =</label><input id="r_usd" class="inp" inputmode="decimal" value="' + (Math.round(R.USD*100)/100) + '" style="width:84px"><label>台幣</label></div>';
+  h += '<div style="display:flex;gap:8px;margin-top:8px"><button class="chip on" data-fxref="1">' + (fx.busy ? '更新中…' : '更新即時匯率') + '</button>' + (man ? '<button class="chip" data-fxauto="1">改回自動</button>' : '') + '</div>';
+  if(fx.err) h += '<p class="small" style="color:var(--warn);margin-top:6px">' + esc(fx.err) + '</p>';
+  if(lv && !man) h += '<p class="small" style="margin-top:6px">資料時間：' + new Date(lv.src || lv.t).toLocaleString("zh-TW") + '（來源 open.er-api.com，每日更新）</p>';
+  h += '<p class="small" style="margin-top:6px">這是市場中間價。信用卡刷卡和換匯會再加手續費（常見約 1.5%），實際以帳單為準。已記的花費以記帳當下的匯率換算，之後換匯率只影響已訂明細和新的記錄。自己改數字會變成「手動」。</p></div>';
+  return h;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-fxref],[data-fxauto]"); if(!b) return;
+  if(b.dataset.fxauto){ sset("hk26-rate-manual","0"); render(true); loadFx(true); } else loadFx(true);
+});
+
+/* ---------- 今日穿搭（依天氣即時組裝的動畫插圖） ---------- */
+const OUT = {day:0};
+function outfitFor(d, day){
+  const C = d.current, D = d.daily;
+  const code = day===0 ? C.weather_code : D.weather_code[day];
+  const T = day===0 ? C.apparent_temperature : (D.temperature_2m_max[day] + D.temperature_2m_min[day]) / 2;
+  const wind = day===0 ? C.wind_speed_10m : 12;
+  const snow = isSnow(code) || (day>0 && D.snowfall_sum[day] > 0) || (day===0 && D.snowfall_sum[0] > 0.2);
+  const rain = !snow && (isWet(code) || (D.precipitation_probability_max[day]||0) >= 60);
+  const L = {T:T, code:code, wind:wind, snow:snow, rain:rain,
+    scarf:T<8, beanie:T<4, gloves:T<2, puffer:T<6, coat:T>=6 && T<16, sweater:T<12, hot:T>=20,
+    boots: snow || T<3, umbrella: rain, breath: T<3, sun: code<=1 && T>=15};
+  const t = [];
+  t.push(["內搭", T<0 ? "發熱衣加刷毛或毛衣" : T<8 ? "發熱衣加毛衣或刷毛" : T<16 ? "長袖加薄針織" : T<22 ? "薄長袖或 T 恤" : "短袖"]);
+  t.push(["外層", T<6 ? "防風防水羽絨外套" : T<16 ? "防風外套或薄羽絨" : "薄外套，早晚備用"]);
+  const acc = []; if(L.beanie) acc.push("毛帽"); if(L.scarf) acc.push("圍巾"); if(L.gloves) acc.push("手套"); if(L.umbrella) acc.push("雨傘或雨衣"); if(L.sun) acc.push("太陽眼鏡");
+  t.push(["配件", acc.length ? acc.join("、") : "不需要特別配件"]);
+  t.push(["鞋子", snow ? "防滑雪靴" : L.boots ? "防滑防水鞋" : rain ? "防水鞋" : "好走的鞋"]);
+  if(wind >= 25) t.push(["風", "風大，體感會更冷，外層要擋風"]);
+  if(snow) t.push(["雪", "路面濕滑，鞋底要防滑，走路放慢"]);
+  L.tips = t; return L;
+}
+function outfitSvg(L){
+  const skin = "#F2C9A5", pants = "#3A4660", boot = L.boots ? "#6B4B34" : "#2E3440";
+  const sweater = L.hot ? "#7FC4E8" : L.sweater ? "#C9754B" : "#8FB8DE";
+  const coat = L.puffer ? "#2F5D8C" : "#B49A6B";
+  const skyTop = L.snow ? "#B8C4D6" : L.rain ? "#8D9BB0" : L.code>=2 ? "#B5CBE0" : "#8FD0F0", skyBot = L.snow ? "#E6ECF4" : L.rain ? "#C3CDDA" : "#E3F2FB";
+  const sway = L.wind >= 25 ? "1.1s" : L.wind >= 12 ? "1.8s" : "2.8s", amp = L.wind >= 25 ? 16 : L.wind >= 12 ? 9 : 5;
+  let s = '<svg viewBox="0 0 200 230" role="img" aria-label="今日穿搭示意" style="width:100%;max-width:300px;display:block;margin:0 auto;border-radius:14px">';
+  s += '<style>.ob{animation:ob 2.6s ease-in-out infinite;transform-origin:100px 205px}.sc{animation:osw ' + sway + ' ease-in-out infinite;transform-origin:104px 82px}.ra{animation:orain .9s linear infinite}.sn{animation:osn 4s linear infinite}.cl{animation:ocl 14s linear infinite alternate}.bp{animation:obp 3s ease-out infinite;transform-origin:96px 62px}.sr{animation:osr 12s linear infinite;transform-origin:34px 34px}' +
+    '@keyframes ob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}@keyframes osw{0%,100%{transform:rotate(-' + amp + 'deg)}50%{transform:rotate(' + amp + 'deg)}}@keyframes orain{from{transform:translateY(-30px)}to{transform:translateY(240px)}}@keyframes osn{from{transform:translate(0,-20px)}to{transform:translate(14px,240px)}}@keyframes ocl{from{transform:translateX(-8px)}to{transform:translateX(10px)}}@keyframes obp{0%{opacity:0;transform:translate(0,0) scale(.4)}30%{opacity:.8}100%{opacity:0;transform:translate(14px,-8px) scale(1.4)}}@keyframes osr{to{transform:rotate(360deg)}}' +
+    '@media (prefers-reduced-motion:reduce){.ob,.sc,.ra,.sn,.cl,.bp,.sr{animation:none}}</style>';
+  s += '<defs><linearGradient id="og" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + skyTop + '"/><stop offset="1" stop-color="' + skyBot + '"/></linearGradient></defs><rect width="200" height="230" fill="url(#og)"/>';
+  if(L.sun) s += '<g class="sr"><circle cx="34" cy="34" r="12" fill="#FFD66B"/>' + [0,45,90,135,180,225,270,315].map(a => '<line x1="34" y1="14" x2="34" y2="8" stroke="#FFD66B" stroke-width="3" stroke-linecap="round" transform="rotate(' + a + ' 34 34)"/>').join("") + '</g>';
+  if(L.code>=2 && !L.sun) s += '<g class="cl" fill="#fff" opacity=".85"><ellipse cx="46" cy="36" rx="24" ry="9"/><ellipse cx="62" cy="30" rx="16" ry="9"/><ellipse cx="150" cy="52" rx="22" ry="8"/></g>';
+  s += '<ellipse cx="100" cy="208" rx="52" ry="7" fill="' + (L.snow ? "#fff" : "#000") + '" opacity="' + (L.snow ? ".9" : ".12") + '"/>';
+  s += '<g class="ob">';
+  // 腿與鞋
+  s += '<rect x="82" y="142" width="14" height="54" rx="5" fill="' + pants + '"/><rect x="104" y="142" width="14" height="54" rx="5" fill="' + pants + '"/>';
+  const by = L.boots ? 184 : 192, bh = L.boots ? 20 : 12;
+  s += '<rect x="79" y="' + by + '" width="20" height="' + bh + '" rx="5" fill="' + boot + '"/><rect x="101" y="' + by + '" width="20" height="' + bh + '" rx="5" fill="' + boot + '"/>';
+  // 手臂（內層）
+  const armC = (L.puffer || L.coat) ? coat : sweater;
+  s += '<rect x="64" y="88" width="14" height="52" rx="7" fill="' + armC + '"/><rect x="122" y="88" width="14" height="52" rx="7" fill="' + armC + '"/>';
+  // 軀幹
+  s += '<rect x="76" y="82" width="48" height="66" rx="13" fill="' + sweater + '"/>';
+  if(L.puffer || L.coat){ s += '<rect x="73" y="82" width="54" height="72" rx="12" fill="' + coat + '"/>';
+    if(L.puffer) s += [100,114,128,142].map(y => '<line x1="76" y1="' + y + '" x2="124" y2="' + y + '" stroke="#fff" stroke-opacity=".28" stroke-width="2"/>').join("");
+    else s += '<line x1="100" y1="84" x2="100" y2="152" stroke="#000" stroke-opacity=".25" stroke-width="2"/>';
+  }
+  // 手
+  const hc = L.gloves ? "#C94B4B" : skin; s += '<circle cx="71" cy="144" r="7" fill="' + hc + '"/><circle cx="129" cy="144" r="7" fill="' + hc + '"/>';
+  // 頭
+  s += '<circle cx="100" cy="56" r="24" fill="' + skin + '"/>';
+  s += '<path d="M76 52 Q78 32 100 31 Q122 32 124 52 Q112 42 100 44 Q88 42 76 52Z" fill="#3B2F2A"/>';
+  s += '<circle cx="91" cy="58" r="2.6" fill="#2B2B2B"/><circle cx="109" cy="58" r="2.6" fill="#2B2B2B"/><path d="M93 67 Q100 73 107 67" stroke="#8A4B3A" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
+  if(L.T < 5) s += '<circle cx="85" cy="64" r="4" fill="#F28B82" opacity=".5"/><circle cx="115" cy="64" r="4" fill="#F28B82" opacity=".5"/>';
+  if(L.sun) s += '<rect x="83" y="53" width="15" height="9" rx="3" fill="#222" opacity=".85"/><rect x="102" y="53" width="15" height="9" rx="3" fill="#222" opacity=".85"/><line x1="98" y1="57" x2="102" y2="57" stroke="#222" stroke-width="2"/>';
+  if(L.beanie) s += '<path d="M75 50 Q75 22 100 22 Q125 22 125 50Z" fill="#D8483D"/><rect x="74" y="43" width="52" height="10" rx="5" fill="#B33A31"/><circle cx="100" cy="20" r="7" fill="#fff"/>';
+  if(L.breath) s += '<g class="bp"><circle cx="104" cy="72" r="5" fill="#fff" opacity=".8"/><circle cx="111" cy="68" r="3.5" fill="#fff" opacity=".7"/></g>';
+  // 圍巾
+  if(L.scarf){ s += '<rect x="78" y="76" width="44" height="12" rx="6" fill="#E8A33D"/><g class="sc"><rect x="106" y="82" width="12" height="34" rx="5" fill="#E8A33D"/><line x1="108" y1="104" x2="116" y2="104" stroke="#B87A1C" stroke-width="2"/><line x1="108" y1="110" x2="116" y2="110" stroke="#B87A1C" stroke-width="2"/></g>'; }
+  s += '</g>';
+  // 雨傘（不跟著晃）
+  if(L.umbrella){ s += '<g><path d="M42 40 Q100 -14 158 40 Z" fill="#E04F5F"/><path d="M42 40 Q56 30 71 40 Q86 30 100 40 Q114 30 129 40 Q144 30 158 40" fill="#fff" fill-opacity=".25"/><line x1="100" y1="40" x2="100" y2="22" stroke="#444" stroke-width="3"/><line x1="146" y1="40" x2="146" y2="144" stroke="#444" stroke-width="3" stroke-linecap="round" display="none"/></g>'; }
+  // 雨雪粒子
+  if(L.rain) for(let i=0;i<16;i++){ const x = 8 + i*12 + (i%3)*3, dl = (i*0.13).toFixed(2); s += '<line class="ra" style="animation-delay:-' + dl + 's;animation-duration:' + (0.7 + (i%4)*0.12).toFixed(2) + 's" x1="' + x + '" y1="0" x2="' + (x-3) + '" y2="12" stroke="#5B8DB8" stroke-width="2" stroke-linecap="round"/>'; }
+  if(L.snow) for(let i=0;i<18;i++){ const x = 6 + i*10.5, dl = (i*0.5).toFixed(1); s += '<circle class="sn" style="animation-delay:-' + dl + 's;animation-duration:' + (3.2 + (i%5)*0.7).toFixed(1) + 's" cx="' + x + '" cy="0" r="' + (2 + (i%3)) + '" fill="#fff"/>'; }
+  return s + '</svg>';
+}
+function outfitCard(d){
+  const L = outfitFor(d, OUT.day), D = d.daily, labs = ["今天","明天","後天"];
+  let h = '<div class="card"><div class="hot"><h2>穿搭示範</h2><span class="tag">依 ' + Math.round(L.T) + '℃ 體感推算</span></div>';
+  h += '<div class="chips" style="margin:6px 0">' + labs.map((x,i) => '<button class="chip' + (OUT.day===i?' on':'') + '" data-oday="' + i + '" style="min-width:64px"><b>' + x + '</b></button>').join("") + '</div>';
+  h += outfitSvg(L);
+  h += '<div class="kv" style="grid-template-columns:56px 1fr;margin-top:10px">';
+  L.tips.forEach(t => { h += '<div class="k">' + t[0] + '</div><div>' + esc(t[1]) + '</div>'; });
+  h += '</div><p class="small" style="margin-top:6px">這張圖是依即時預報自動組裝的示意動畫，不是 AI 生成的照片。穿著依個人怕冷程度調整，洋蔥式穿法比較好增減。</p></div>';
+  return h;
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-oday]"); if(!b) return; OUT.day = +b.dataset.oday; render(true); });
 
 /* ---------- 繪製與事件 ---------- */
 const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo, sos:viewSos};
@@ -913,7 +1073,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   const t = e.target;
   if(t.dataset && t.dataset.fpaid){ const fs = fixedState(); fs[t.dataset.fpaid] = Object.assign(fs[t.dataset.fpaid]||{}, {paid:t.checked}); sset("hk26-fixed", JSON.stringify(fs)); render(true); }
-  else if(t.id==="r_jpy" || t.id==="r_usd"){ const j = parseFloat($("#r_jpy").value), u = parseFloat($("#r_usd").value); const r = {}; if(j>0) r.JPY = j; if(u>0) r.USD = u; sset("hk26-rate", JSON.stringify(r)); render(true); }
+  else if(t.id==="r_jpy" || t.id==="r_usd"){ const j = parseFloat($("#r_jpy").value), u = parseFloat($("#r_usd").value); const r = {}; if(j>0) r.JPY = j; if(u>0) r.USD = u; sset("hk26-rate", JSON.stringify(r)); sset("hk26-rate-manual","1"); render(true); }
 });
 (function init(){
   const t = todayId(); const sd = sget("hk26-day"); const stt = sget("hk26-tab");
