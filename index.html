@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E6E8E"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="北海道行程"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
+<title>北海道自駕行程</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: sticky header, one scrolling column, fixed 5-tab bottom bar. Cold night-road palette; amber = lit lodging. */
+:root{
+  --bg:#EDF1F6; --card:#FFFFFF; --ink:#14233A; --sub:#55657C; --line:#D5DDE8;
+  --accent:#0E6E8E; --accent-ink:#FFFFFF; --lodge:#C77410; --lodge-bg:#FFF3E1;
+  --ok:#2B7A4B; --ok-bg:#E4F4EA; --warn:#B8321F; --warn-bg:#FCE9E5; --chip:#E3E9F1;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1624; --card:#16233A; --ink:#E7EDF6; --sub:#9FB0C7; --line:#2A3A55;
+    --accent:#5BC0E0; --accent-ink:#06202C; --lodge:#F0A64A; --lodge-bg:#33260F;
+    --ok:#6CCB92; --ok-bg:#12301F; --warn:#FF9A88; --warn-bg:#3A1812; --chip:#223250; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1624; --card:#16233A; --ink:#E7EDF6; --sub:#9FB0C7; --line:#2A3A55;
+  --accent:#5BC0E0; --accent-ink:#06202C; --lodge:#F0A64A; --lodge-bg:#33260F;
+  --ok:#6CCB92; --ok-bg:#12301F; --warn:#FF9A88; --warn-bg:#3A1812; --chip:#223250; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 84px;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding:12px 0 8px;border-bottom:1px solid var(--line)}
+h1{font-size:19px;margin:0;line-height:1.3}
+.hd-sub{font-size:13px;color:var(--sub);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap}
+main{padding-top:14px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h2{font-size:17px;margin:0}
+h3{font-size:15px;margin:0}
+p{margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.note{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:14px}
+.note.warn{background:var(--warn-bg);color:var(--ink);border-left:4px solid var(--warn)}
+.note.ok{background:var(--ok-bg);border-left:4px solid var(--ok)}
+.small{font-size:13px;color:var(--sub)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-inline:-2px;padding-inline:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 12px;font:inherit;font-size:14px;text-align:center;min-width:58px;cursor:pointer}
+.chip b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.chip span{display:block;font-size:11px;color:var(--sub)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.on span{color:var(--accent-ink);opacity:.85}
+.chip.today{outline:2px solid var(--lodge);outline-offset:1px}
+.tag{display:inline-block;font-size:12px;border-radius:6px;padding:1px 8px;background:var(--chip);color:var(--ink);white-space:nowrap}
+.tag.free{background:var(--ok-bg);color:var(--ok);font-weight:500}
+.tag.paid{background:var(--lodge-bg);color:var(--lodge);font-weight:500}
+.tag.bad{background:var(--warn-bg);color:var(--warn);font-weight:500}
+.lodge{border:2px solid var(--lodge);background:var(--lodge-bg);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.lodge .k{font-size:12px;color:var(--lodge);font-weight:700;letter-spacing:.06em}
+.lodge .v{font-size:17px;font-weight:700}
+.btn{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:9px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+a{color:var(--accent)}
+.links{display:flex;flex-wrap:wrap;gap:6px 16px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.fact{background:var(--chip);border-radius:10px;padding:8px 10px;min-width:0}
+.fact .k{font-size:11px;color:var(--sub)}
+.fact .v{font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl li{display:grid;grid-template-columns:54px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.tl li:first-child{border-top:0}
+.tl .t{font-size:13px;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums}
+.tl .t.none{color:var(--sub);font-weight:400}
+.tl .x{min-width:0;overflow-wrap:anywhere}
+.tl li.warn .x{color:var(--warn)}
+.ov{display:flex;flex-direction:column}
+.ov button{all:unset;display:grid;grid-template-columns:52px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.ov button:first-child{border-top:0}
+.ov .d{font-weight:700;font-variant-numeric:tabular-nums}
+.ov .d span{display:block;font-size:11px;color:var(--sub);font-weight:400}
+.ov .r{font-size:14px}
+.ov .stay{display:inline-block;margin-top:4px;border:2px solid var(--lodge);background:var(--lodge-bg);border-radius:7px;padding:0 8px;font-size:13px;font-weight:700}
+.kv{display:grid;grid-template-columns:78px 1fr;gap:4px 10px;font-size:14px;margin-top:8px}
+.kv .k{color:var(--sub)}
+.kv div{min-width:0;overflow-wrap:anywhere}
+.hot{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.hot h3{overflow-wrap:anywhere}
+.jp{font-size:12px;color:var(--sub);font-weight:400;display:block}
+.pick{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--sub);font-weight:500}
+.check{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:start}
+.check:first-child{border-top:0}
+.check input{width:22px;height:22px;accent-color:var(--accent);margin:2px 0 0}
+.check label{min-width:0;overflow-wrap:anywhere}
+.check input:checked+label{color:var(--sub);text-decoration:line-through}
+.check.nostrike input:checked+label{color:var(--ink);text-decoration:none}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(7,1fr);
+  padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+nav button{all:unset;text-align:center;font-size:12.5px;font-weight:500;color:var(--sub);padding:10px 0;border-radius:8px;cursor:pointer;line-height:1.3}
+nav button.on{color:var(--accent);background:var(--chip)}
+button.lnk{all:unset;cursor:pointer;text-align:left;font-size:15px}
+.inp{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--lodge);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){main>*{animation:rise .25s ease both}}
+@keyframes rise{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+<style>html,body{margin:0}</style></head><body>
+
+<header>
+  <h1>北海道自駕行程</h1>
+  <div class="hd-sub"><span>2026/11/4 – 11/12 · 9 天 8 晚</span><span id="count"></span></div>
+</header>
+<main id="main"></main>
+<nav id="nav" aria-label="分頁"></nav>
+
+<script>
+/* ---------- 資料 ---------- */
+const TRIP_START = new Date(2026, 10, 4);
+const DAYS = [
+ {id:"d1",date:"11/4",w:"三",short:"旭川",title:"抵達新千歲 → 旭川",stay:"旭川",stayId:"asa",drive:"約 2.5–3 小時",sun:"06:10 / 16:18",temp:"旭川 高 6.2℃ / 低 -1.5℃",
+  items:[
+  ["14:05","新千歲機場落地，領行李。"],
+  ["15:00","到 Times 租車 新千歲機場店取車（已訂，預約取車時間 15:00）。車內有雪胎（スタッドレス＝冬季雪胎）、4WD、ETC 裝置、導航。約 15:30 出發。"],
+  ["","開往旭川約 2.5–3 小時；日落 16:18 後有一半路程在夜裡。"],
+  ["","旭川住宿已訂：ART 旭川酒店，15:00 後可入住。"],
+  ["晚餐","拉麵村約 19:00 後可能趕不上，改吃旭川站附近的山頭火本店（21:30 前）或梅光軒本店（20:30 前）。"],
+  ["飯後","走到常盤圓環（常盤ロータリー，初戀取景地，站周步行約 5 分鐘）。"]],
+  backup:""},
+ {id:"d2",date:"11/5",w:"四",short:"美瑛→札幌",title:"美瑛 → 札幌",stay:"札幌",stayId:"spk",drive:"約 3–3.5 小時（不含停留）",sun:"美瑛 06:10 / 16:17",temp:"旭川 6.2 / -1.5℃ · 札幌 8.7 / 1.6℃",
+  items:[
+  ["8:30","出發到白金青池（白金青い池），上午人少（官方建議），停車 1,000 日圓。"],
+  ["","白鬚瀑布（白ひげの滝），再到四季彩之丘（四季彩の丘，9:10 開園）。"],
+  ["午餐","在美瑛吃，避開旭川。"],
+  ["13:30","前出發開往札幌，約 3–3.5 小時，約 17:00 到。"],
+  ["17:00","入住 Premier Hotel -TSUBAKI- 札幌（已訂，入住時間已獲准改為 17:00）。入住後晚餐。"]],
+  backup:"青池若積雪、水面不藍（我沒查到預測），縮短停留，多留時間給丘陵路。"},
+ {id:"d3",date:"11/6",w:"五",short:"札幌徒步",title:"札幌徒步日",stay:"札幌",stayId:"spk",drive:"不開車",sun:"約 06:15 / 16:21",temp:"札幌 高 8.7℃ / 低 1.6℃",
+  items:[
+  ["8:00","二條市場早餐（海鮮丼）。"],
+  ["10:00","中島公園、豐平館（日本庭園已閉園）。"],
+  ["12:00","湯咖哩午餐。"],
+  ["13:30","北海道神宮（16:00 關，請 15:30 前出來）。"],
+  ["15:30","狸小路、大通逛街。"],
+  ["17:30","搭市電到「纜車入口」（ロープウェイ入口），搭 17:17 之後的免費接駁巴士上藻岩山看夜景。"],
+  ["20:00","薄野：拉麵或收尾聖代。"]],
+  backup:"藻岩山能見度差或不想再出門，直接改為薄野晚餐。"},
+ {id:"d4",date:"11/7",w:"六",short:"余市→小樽",title:"余市 → 小樽",stay:"小樽",stayId:"ota",drive:"約 2 小時",sun:"小樽 06:18 / 16:21",temp:"小樽 高 8.3℃ / 低 1.6℃",
+  items:[
+  ["9:00","札幌飯店退房（已訂的 TSUBAKI 退房時間是 11:00 前）。"],
+  ["9:30","出發到余市，約 1.5 小時。"],
+  ["11:00","Nikka 博物館與商店（不需預約，最終入館 15:30，你開車不能試飲），午餐可在 RITA'S KITCHEN。"],
+  ["13:30","出發回小樽，約 30 分鐘。"],
+  ["14:00","到小樽水族館，最晚 16:00 關，請 14:30 前入館。"],
+  ["16:00","走運河、青之運河（青の運河，日落到 22:30）。日落 16:21，光線最好。"],
+  ["17:00","回 Stay's OTARU 入住（已訂，入住時間 17:00–18:00，已獲飯店同意）。停車、放行李。"],
+  ["18:30","壽司屋通晚餐。週六排隊較多，去之前先看想吃那間的營業時間與最後點餐。Stay's OTARU 走到壽司屋通要多久還沒確認，太遠就開車。"],
+  ["注意","入住只到 18:00。可能晚到要先聯絡 Stay's OTARU（+81 134-31-6111）。",1]],
+  backup:"Nikka 沒有導覽，博物館和商店約 1 小時即可，多的時間留給水族館。"},
+ {id:"d5",date:"11/8",w:"日",short:"小樽→洞爺湖",title:"小樽 → 洞爺湖",stay:"洞爺湖",stayId:"toy",drive:"約 3 小時",sun:"洞爺湖 06:19 / 16:22",temp:"小樽 8.3 / 1.6℃ · 洞爺湖未查到",
+  items:[
+  ["9:00","10:00 前要從 Stay's OTARU 退房，行李放車上。延續小樽運河、堺町通（商店 9:00 開）。午餐時魚真週日休，改選小樽政壽司本店或聖德太子飛鳥店。"],
+  ["12:00","出發開往洞爺湖，約 3 小時，15:00 左右到。"],
+  ["入住後","大洞爺村大和附樓旅館 15:00–19:00 可入住（已訂）。湖畔散步、泡足湯（藥師之湯，17:00 前）。17:00 起有溫泉街光隧道。"],
+  ["","遊覽船末班 16:00 出發，趕不上就放棄。"]],
+  backup:"白天天氣差，改去營業到 17:00 的洞爺湖遊客中心。"},
+ {id:"d6",date:"11/9",w:"一",short:"洞爺→函館",title:"洞爺湖 → 函館",stay:"函館湯之川",stayId:"hak",drive:"約 2 小時 15 分",sun:"函館約 06:16 / 16:25",temp:"函館 高 10.0℃ / 低 1.8℃",
+  items:[
+  ["8:30","湖畔散步，走到洞爺湖。"],
+  ["11:30","前出發開往函館，約 2 小時 15 分，途中午餐，14:00 左右到湯之川。湯濱溫泉酒店（已訂）15:00 起可入住，你要求的是 17:00–18:00，飯店還沒回覆。"],
+  ["16:00","搭市電到十字街，步行到纜車站，16:25 日落。"],
+  ["注意","11/9 11:00 起函館山上道路冬季封閉，只能搭纜車。",1]],
+  backup:"纜車若沒有重開，改到金森紅磚倉庫、元町看夜景。一定要先打 0138-23-3105 確認 11/9 是否營運。"},
+ {id:"d7",date:"11/10",w:"二",short:"函館徒步",title:"函館徒步日",stay:"函館湯之川",stayId:"hak",drive:"不開車（市電）",sun:"函館約 06:17 / 16:24",temp:"函館 高 10.0℃ / 低 1.8℃",
+  items:[
+  ["7:30","香雪園看紅葉，免費。"],
+  ["9:00","朝市早午餐。"],
+  ["10:30","金森紅磚倉庫，再到元町、八幡坂。"],
+  ["14:00","五稜郭塔與公園。"],
+  ["16:00","泡湯。湯之川溫泉街散步，晚餐在飯店附近或吃幸運小丑漢堡。"],
+  ["注意","洋菓子店 佩雪・米尼翁 11/10（週二）休息，這天不要安排。",1]],
+  backup:"下雨或下雪時紅葉縮短，多待室內商店與咖啡館。"},
+ {id:"d8",date:"11/11",w:"三",short:"函館→支笏湖",title:"函館 → 支笏湖",stay:"支笏湖",stayId:"shi",drive:"高速約 4.5–5 小時",sun:"支笏湖 06:21 / 16:16",temp:"函館 10.0 / 1.8℃ · 支笏湖畔 7.0 / 0.2℃",
+  items:[
+  ["8:30","10:00 前從湯濱溫泉酒店退房，出發，高速公路約 4.5–5 小時，午餐在道央道服務區，13:30 左右到支笏湖。"],
+  ["15:00","入住支笏湖第一寶亭留 翠山亭（已訂，15:00 起可入住）。湖畔散步、支笏湖遊客中心（16:15 前天黑）。"],
+  ["注意","入住需出示有照片的證件，姓名要和訂房姓名相同。",1]],
+  backup:"途中若下雪或結冰，就放棄散步，直接入住，安全先。"},
+ {id:"d9",date:"11/12",w:"四",short:"回程",title:"支笏湖 → 新千歲 → 台北",stay:"",stayId:"",drive:"約 50 分鐘",sun:"千歲 06:21 / 16:14",temp:"千歲 高 8.9℃ / 低 -1.7℃",
+  items:[
+  ["10:30","翠山亭 11:00 前退房，前出發，到機場附近加滿油。"],
+  ["13:30","Times 租車 新千歲機場店還車（已訂，預約還車時間 13:30）。還車後搭接駁到航廈，約 14:00 才到櫃檯，距 15:20 起飛約 80 分鐘，可行但偏緊；想提早還車，取車時先問店員。"],
+  ["15:20","新千歲起飛，18:55 抵達台北。"]],
+  backup:""}
+];
+
+
+const BOOKED = [
+ {t:"租車",n:"Times 租車 新千歲機場店",rows:[["取車","11/4（三）15:00，新千歲機場店"],["還車","11/12（四）13:30，同一店（航班 BR 116 抵達、BR 115 離境）"],["車輛","C-1 級、自動排檔，4WD、雪胎、ETC 裝置、導航（支援多國語言）"],["保險","Super Safety Package（已含）"],["費用","總額 49,780 日圓含稅，線上預付"],["ETC","通行費不含在費用內，取車時另收；確認信列有 ETC 卡與 Hokkaido Expressway Pass 選配，是否含 Expressway Pass 取車時問店員"],["店電話","0123-45-8756"]]},
+ {t:"支笏湖住宿",n:"支笏湖第一寶亭留 翠山亭（Shikotsuko Daiichi Hotel Suizantei）",rows:[["日期","11/11（三）15:00 起入住，11/12（四）11:00 前退房，1 晚"],["房型","Deluxe 雙床房（成人專用），1 位客人"],["費用","Chase Travel 已付 187.02 美元，含稅費"],["取消","11/8（日）00:00（住宿所在地時間）前免費；3 天內取消需付首晚房費，未入住收全額"],["額外費用","停車、客房服務等額外費用在飯店現場用信用卡付"],["入住","需出示有照片的證件，姓名要和訂房姓名相同"],["地址","千歲市支笏湖溫泉（066-0281）"]]},
+ {t:"函館住宿",n:"湯濱溫泉酒店（Yunohama Hotel）",rows:[["日期","11/9（一）15:00 起入住，11/11（三）10:00 前退房，2 晚"],["房型","市景日式標準間，1 位成人，房價不含餐"],["費用","總額 14,700 日圓，Booking.com 顯示尚未付款，會自動扣信用卡；溫泉稅每人每晚 100 日圓現場付"],["取消","11/4（三）23:59（日本時間）前免費；11/5 起取消費 8,250 日圓；11/10 起 16,500 日圓"],["入住","你提出的 17:00–18:00 入住要求，還沒收到飯店同意"],["地址","函館市湯川町 1-2-30"],["電話","+81 138-59-2231"]]},
+ {t:"洞爺湖住宿",n:"大洞爺村大和附樓旅館（Granvillage Toya Daiwa Ryokan Annex）",rows:[["日期","11/8（日）入住 15:00–19:00，11/9（一）退房 10:00 前，1 晚"],["房型","日式房，房價不含餐"],["費用","Booking.com 顯示已付款 TWD 1,779"],["取消","10/31（六）23:59（日本時間）前免費；11/1 起取消費 TWD 889；11/5 起 TWD 1,779"],["地址","洞爺湖溫泉 34-4（049-5721）"],["電話","+81 142-75-1085"]]},
+ {t:"小樽住宿",n:"Stay's OTARU（公寓式住宿）",rows:[["日期","11/7（六）入住時間已獲准改為 17:00–18:00，11/8（日）退房 10:00 前，1 晚"],["房型","雙人房，1 位成人，房價不含餐"],["費用","總額 11,949 日圓（含稅與清潔費 3,500）；Booking.com 顯示待付款，會自動扣信用卡；住宿稅每人每晚另在現場付"],["取消","10/30（五）23:59（日本時間）前免費；10/31 起取消需付 9,388 日圓"],["地址","小樽市相生町 1-9"],["電話","+81 134-31-6111"]]},
+ {t:"旭川住宿",n:"ART 旭川酒店（Art Hotel Asahikawa）",rows:[["日期","11/4（三）入住 15:00，11/5（四）退房 11:00 前，1 晚"],["房型","標準雙床房，禁菸"],["費用","已付款 TWD 1,286；加購早餐每人 TWD 496"],["取消","11/2（一）23:59（日本時間）前免費；11/3 起取消需付 TWD 1,286"],["地址","旭川市 7 条通 6（070-0037）"],["電話","+81 166-25-8811"]]},
+ {t:"札幌住宿",n:"Premier Hotel -TSUBAKI- 札幌（札幌普樂美雅椿酒店）",rows:[["日期","11/5（四）–11/7（六），2 晚；入住時間已獲准改為 17:00；退房 11:00 前"],["房型","豪華雙床房，禁菸"],["費用","總額 17,296 日圓含稅（約 NT$3,548），Booking.com 顯示待付款 17,296，付款時會自動扣信用卡"],["取消","11/2（一）11:59 前可免費取消（住宿所在地時間）；之後取消需付全額"],["地址","北海道札幌市豊平区豊平 4 条 1-1-1"],["電話","+81 11-821-1111"]]}
+];
+
+const bk = id => { const s = STOPS.find(x => x.id===id); return s && s.hotels.find(x => x.booked); };
+const STOPS = [
+ {id:"asa",name:"旭川",when:"11/4 · 1 晚",note:"已訂 ART 旭川酒店，11/2 23:59（日本時間）前可免費取消。溫泉與停車確認信沒寫，請打電話確認。",
+  hotels:[
+  {n:"ART 旭川酒店（Art Hotel Asahikawa）",jp:"アートホテル旭川",booked:1,loc:"旭川市 7 条通 6；電話 +81 166-25-8811",onsen:"未查到，確認信沒寫，請打電話問",pk:"unk",park:"未查到，請打電話問是否有停車場、收費與車高限制",price:"已付款 TWD 1,286（1 晚，標準雙床房禁菸）",meal:"可加購早餐，每人 TWD 496"}]},
+ {id:"spk",name:"札幌",when:"11/5–11/6 · 2 晚",note:"已訂 Premier Hotel -TSUBAKI-，11/2 11:59 前可免費取消。溫泉、停車費、早餐請打電話確認。",
+  hotels:[
+  {n:"Premier Hotel -TSUBAKI- 札幌（札幌普樂美雅椿酒店）",jp:"プレミアホテル-TSUBAKI-札幌",booked:1,loc:"豊平 4 條；地鐵豐水薄野站 3 號出口步行約 13 分；到薄野、大通步行約 15 分，開車或計程車約 5 分",onsen:"有大浴場與桑拿；是否天然溫泉、有沒有露天，第三方資料沒寫，未查到",pk:"paid",park:"地下停車場約 200 台；第三方寫 800 或 1,000 日圓／晚（兩處不一致），部分方案含免費停車。車高限制與預約規定未查到，入住前問飯店",price:"已訂：2 晚共 17,296 日圓含稅",meal:"自助早餐大人 3,300 日圓（7:00–10:00，第三方資料）；確認頁沒有顯示含早餐"}]},
+ {id:"ota",name:"小樽",when:"11/7（週六）· 1 晚",note:"已訂 Stay's OTARU（公寓式住宿），10/30 23:59（日本時間）前可免費取消。溫泉與停車確認信沒寫，請打電話確認。",
+  hotels:[
+  {n:"Stay's OTARU（公寓式住宿）",jp:"ステイズ小樽",booked:1,loc:"小樽市相生町 1-9；電話 +81 134-31-6111",onsen:"未查到；公寓式住宿不一定有大浴場，小樽市區也查不到免費停車的溫泉飯店",pk:"unk",park:"未查到，請打電話問有沒有停車場、收費與車高限制",price:"總額 11,949 日圓含稅與清潔費 3,500；住宿稅每人每晚另在現場付",meal:"不含餐"}],
+  bath:[
+  {n:"湯の花 手宮殿",jp:"湯の花 手宮殿",h:"9:00–23:00；第三方寫全年無休；官網 10/17 公告有 11 月活動",fee:"第三方寫 880 日圓；官網寫 7/1 調過價，現在金額未查到",x:"天然溫泉；第三方寫有露天。停車場第三方寫約 180 台，費用未查到。手宮 1-5-20，電話 0134-31-4444。最推薦：晚上開得晚、有停車場。"},
+  {n:"湯の花 朝里殿",jp:"湯の花 朝里殿",h:"9:00–23:00；第三方寫全年無休",fee:"第三方寫 880 日圓；官網寫 7/1 調過價，現在金額未查到",x:"天然溫泉、有露天；停車場第三方寫約 180 台。在朝里川溫泉一帶，離市區比手宮殿遠。新光 5-12-24，電話 0134-54-4444。"},
+  {n:"小樽溫泉 Ospa",jp:"小樽温泉オスパ",h:"第三方寫 24 小時；清潔時間 7:50–9:30；週三維修，13:00 前不能入浴",fee:"第三方寫 850 日圓",x:"港邊（築港）；有露天。停車資料未查到。"},
+  {n:"神仏湯温泉",jp:"神仏湯温泉",h:"12:30–25:00；週一休",fee:"公共澡堂價，約 500 日圓（第三方概略）",x:"南小樽站步行約 5 分鐘。停車資料未查到。"},
+  {n:"柳川湯",jp:"柳川湯",h:"14:30–22:00；週一、週五休",fee:"約 500 日圓（概略）",x:"沒有停車場，開車不方便。"},
+  {n:"奧澤溫泉 中央湯",jp:"奥沢温泉 中央湯",h:"14:00–20:00；週一休",fee:"約 500 日圓（概略）",x:"只有 2 個車位。"}]},
+ {id:"toy",name:"洞爺湖",when:"11/8（週日）· 1 晚",note:"已訂大洞爺村大和附樓旅館，10/31 23:59（日本時間）前可免費取消。溫泉與停車確認信沒寫，請打電話確認。",
+  hotels:[
+  {n:"大洞爺村大和附樓旅館（Granvillage Toya Daiwa Ryokan Annex）",jp:"大洞爺村 大和附樓旅館",booked:1,loc:"洞爺湖溫泉 34-4（洞爺湖溫泉街）；電話 +81 142-75-1085",onsen:"位在洞爺湖溫泉街，但確認信沒寫有沒有大浴場，請打電話確認",pk:"unk",park:"確認信沒寫，請打電話問有沒有停車場與收費",price:"日式房，1 晚，Booking.com 顯示已付款 TWD 1,779",meal:"不含餐"}]},
+ {id:"hak",name:"函館湯之川",when:"11/9–11/10 · 2 晚",note:"已訂湯濱溫泉酒店（Yunohama Hotel），11/4 23:59（日本時間）前可免費取消。市電湯之川到十字街約 37 分，單程 210–260 日圓，一日券 600 日圓；十字街走到纜車站約 10 分。",
+  hotels:[
+  {n:"湯濱溫泉酒店（Yunohama Hotel）",jp:"湯の浜ホテル",booked:1,loc:"湯川町 1-2-30，臨海；電話 +81 138-59-2231；市電約 30 分到市區",onsen:"第三方寫 100% 掛け流し、露天、桑拿。Booking.com 寫溫泉開放時間 5:00–9:00、13:00–1:00，有刺青可能不能使用公共澡堂",pk:"free",park:"第三方寫免費、50 台；確認信沒寫，入住前確認",price:"2 晚，市景日式標準間，總額 14,700 日圓（Booking.com 補貼後），溫泉稅每人每晚 100 日圓現場付",meal:"不含餐"}]},
+ {id:"shi",name:"支笏湖",when:"11/11（週三）· 1 晚",note:"已用 Chase Travel 訂了支笏湖第一寶亭留 翠山亭，11/8 00:00（住宿所在地時間，也就是 11/7 晚上）前可免費取消。",
+  hotels:[
+  {n:"支笏湖第一寶亭留 翠山亭（Shikotsuko Daiichi Hotel Suizantei）",jp:"支笏湖第一寶亭留 翠山亭",booked:1,loc:"支笏湖畔（支笏湖溫泉）",onsen:"第三方資料寫室內外大浴場、露天、桑拿，是否天然未查到；Chase 確認信沒寫",pk:"unk",park:"第三方資料寫有停車場，費用未查到；停車費等額外費用要在飯店用信用卡付",price:"Chase Travel 已付 187.02 美元（含稅費），Deluxe 雙床房，成人專用，3 張單人床",meal:"確認信沒寫是否含餐；第三方資料寫常見為 2 食付，請確認"}]}
+];
+
+const SPOTS = [
+ {g:"重要提醒",k:"alert",items:[
+  ["函館山纜車","10/20–11/8 檢修休運。官方沒寫 11/9 重開，但往年休運結束當天恢復；請打 0138-23-3105 確認。"],
+  ["函館山開車上山","11/9（週一）11:00 起冬季封閉到 2027/4/12，只能搭纜車；登山巴士只到 11/8。"],
+  ["藻岩山","11 月不停駛；山麓停車場 9/7 起收費 1,000 日圓，免費接駁巴士平日 17:17 才開始發車。"],
+  ["中島公園日本庭園","11 月上旬起閉園，11/6 逛不到庭園，只能逛公園與豐平館。"],
+  ["小樽啤酒倉庫 No.1","10/1 公告改裝休業，期間未查到，先打 0134-21-2323。"],
+  ["有珠山纜車","11 月是否因車輛檢查停運未查到，先打 0142-75-2401。"]]},
+ {g:"旭川（11/4）",k:"asa",items:[
+  {n:"旭川拉麵村",jp:"旭川ラーメン村",h:"11:00–20:00，免費入村。山頭火 11:00–20:00；梅光軒 11:00–15:30、17:00–20:30（不定休）；蜂屋未查到。各店縮短營業，建議 19:00 前到。",r:"不用，現場排隊",p:"有免費停車場，台數未查到。洽詢 0166-48-2153。"},
+  {n:"常盤圓環",jp:"常盤ロータリー 旭川",h:"公共地標，免費",r:"不用",p:"官方沒提停車；停旭川站周邊收費場再走約 5 分，約 500–1,200 日圓／日。"},
+  {n:"雪之輪旭川（燈飾）",jp:"ユキノワ アサヒカワ",h:"今年期間未查到；去年是 11/22 起，11/4 大概率還沒點燈（推測）",r:"不用",p:"無專用停車場，用市中心收費場。洽詢 0166-23-0090。"}]},
+ {g:"美瑛（11/5）",k:"bie",items:[
+  {n:"白金青池",jp:"白金青い池",h:"白天免費；11 月 17:00 起點燈。11 月上旬是否積雪、水色是否還藍未查到；晴天 13–15 點最擠，官方建議上午去。",r:"不用",p:"7/1 起 1,000 日圓，8:00–21:30，約 270 台（第三方）。滿了可搭道北巴士，時刻未查到。"},
+  {n:"白鬚瀑布",jp:"白ひげの滝",h:"開放時間未查到，無入場費記載",r:"不用",p:"免費（舊白金公園山谷滑雪場停車場，或 22 台的觀光中心）。道道 966 號上段 10/19 起冬季封閉。"},
+  {n:"四季彩之丘",jp:"四季彩の丘",h:"9:10–16:30，11 月無休。花田免費到霜降（結束日未查到）；阿爾帕卡牧場 500 日圓",r:"不用",p:"300 台，11 月是否收費以官方新聞為準。"},
+  {n:"美瑛站・四季資訊館",jp:"美瑛 四季の情報館",h:"8:30–17:00，免費",r:"不用",p:"30 個免費車位"}]},
+ {g:"札幌（11/5–11/6）",k:"spk",items:[
+  {n:"中島公園・豐平館",jp:"中島公園 豊平館",h:"公園免費；豐平館 9:00–17:00（入館到 16:30）350 日圓；日本庭園 11 月上旬起閉園",r:"不用",p:"園內無停車場，用周邊收費場。"},
+  {n:"北海道神宮",jp:"北海道神宮",h:"7:00–16:00，免費。六花亭神宮茶屋店 9:00–16:00（11 月起）",r:"不用",p:"免費約 230 台。滿了用北一條駐車場（首小時免費，之後每小時 500 日圓，第三方）。"},
+  {n:"二條市場",jp:"札幌二条市場",h:"約 7:00–17:00，各店不同",r:"不用",p:"無專用停車場。建議搭地鐵到大通，步行約 7 分。"},
+  {n:"狸小路商店街",jp:"狸小路商店街",h:"統一營業時間未查到",r:"不用",p:"無專用停車場。"},
+  {n:"藻岩山纜車",jp:"札幌もいわ山ロープウェイ",h:"10:30–22:00（上行末班 21:30）。纜車來回 1,400 日圓；加小型纜車套票 2,100 日圓",r:"不用，山麓站 4 樓窗口買，可刷卡／IC；也可 KKday 預購 QR",p:"山麓 95 台，1,000 日圓（山頂消費滿 3,000 日圓免費）。導航輸入「札幌もいわ山ロープウェイ」。沒車位：搭市電到「ロープウェイ入口」，平日 17:17 起有免費接駁巴士，白天走約 10 分。"},
+  {n:"札幌啤酒博物館",jp:"サッポロビール博物館",h:"11:00–18:00（最終 17:30）。自由見學 1,000 日圓；品酒廳付費，你開車不能喝，可點無酒精 200 日圓",r:"自由見學免預約；含試飲導覽 2,000 日圓要預約（011-748-1876），週一不開團",p:"有停車場，免費時數 5 或 6 小時說法不一，到現場問櫃檯。"},
+  {n:"札幌市區停車與票券",jp:"",h:"大通周邊一日多半 800–3,000 日圓（第三方，2024/12）。飯店停車一般範圍未查到。",r:"",p:"11/4–6 是平日，週末限定的週末地鐵票用不到。地鐵一日券 830 日圓、市電一日券 570 日圓，兩者不通用。"}]},
+ {g:"小樽（11/7–11/8）",k:"ota",items:[
+  {n:"小樽運河・堺町通",jp:"小樽運河",h:"全天開放，免費",r:"不用",p:"小樽觀光駐車場：60 分 300 日圓，24 小時最大 1,000 日圓，離運河約 3 分（官方）。堺町通商店街停車場 9:00–19:00，最大 1,000 日圓。較便宜：Times 小樽稻穗第 7（最大 800，第三方）。"},
+  {n:"青之運河",jp:"小樽 青の運河",h:"11/1–1/31，日落到 22:30，免費。洽詢 0134-33-2510",r:"不用",p:"停運河旁收費場。"},
+  {n:"小樽啤酒倉庫 No.1",jp:"小樽ビール倉庫No.1",h:"原本 11:00–22:00；改裝休業中，期間未查到",r:"先電話",p:"附近收費場"},
+  {n:"北一硝子・音樂盒堂",jp:"北一硝子 三号館",h:"北一硝子三號館 9:00–18:00 無休；音樂盒堂本館 9:00–18:00",r:"不用",p:"北一有收費停車場（金額未查到）；音樂盒堂無停車場。"},
+  {n:"出抜小路・壽司屋通",jp:"小樽出抜小路",h:"依店家而異",r:"看店",p:"無專用停車場，停觀光駐車場後走路。"}]},
+ {g:"洞爺湖（11/8）",k:"toy",items:[
+  {n:"溫泉街・足湯",jp:"洞爺湖温泉 薬師の湯",h:"藥師之湯 9:00–17:00 免費。「とうの湯」足湯 10/8 公告暫時關閉",r:"不用",p:"約 10 車位，對面有公共停車場。"},
+  {n:"洞爺湖遊覽船",jp:"洞爺湖汽船",h:"11/1 起 9:00–16:00，每 60 分鐘一班，無休；票價未查到",r:"不用，現場",p:"碼頭旁 150 個免費車位。洽詢 0142-75-2137"},
+  {n:"有珠山纜車",jp:"有珠山ロープウェイ",h:"冬季 9:00–16:00；票價兩種說法（2,000 或 1,450 日圓）；11 月是否停運未查到",r:"先電話 0142-75-2401",p:"400 台，11 月收費，金額未查到。"},
+  {n:"洞爺湖遊客中心・火山科學館",jp:"洞爺湖ビジターセンター",h:"9:00–17:00；遊客中心免費，科學館票價未查到",r:"不用",p:"有停車場"},
+  {n:"溫泉街光隧道",jp:"洞爺湖温泉 イルミネーション",h:"11/1–4/27，17:00–22:00，入場費未查到",r:"不用",p:"無停車場，附近有町營免費停車場。"},
+  {n:"花火",jp:"",h:"官網只寫「約半年每晚施放」，今年結束日我無法查證",r:"",p:""}]},
+ {g:"函館（11/9–11/10）",k:"hak",items:[
+  {n:"函館山纜車",jp:"函館山ロープウェイ",h:"10:00–21:00，上行末班 20:30、下行 21:00，每 15 分鐘一班，約 3 分鐘。來回 1,800 日圓，單程 1,200 日圓。日落後 1–2 小時最擠。",r:"不用，山麓／山頂現場買（可刷卡、IC、PayPay）；也可官網或 webket.jp 預購",p:"山麓觀光駐車場 47 台，1 小時內 300 日圓，之後每 30 分鐘 150 日圓。沒位子：搭市電到「十字街」再走約 10 分（坡陡）。官方建議搭市電或路線巴士，山麓沒有官方合作停車場。"},
+  {n:"香雪園",jp:"香雪園 函館",h:"免費全年開放；紅葉最佳期約到 11 月上旬",r:"不用",p:"免費停車 155 或 167 台；週末白天易滿。"},
+  {n:"函館朝市",jp:"函館朝市",h:"約 5:00–14:00，各店不同；11/10（週二）全市場是否休息未查到",r:"不用",p:"大手町朝市旁 41 台（20 分鐘 100 日圓）、若松町 52 台（1 小時 200 日圓）；單店消費 2,200 日圓以上可免費。"},
+  {n:"金森紅磚倉庫",jp:"金森赤レンガ倉庫",h:"商店 9:30–19:00；啤酒屋 11:30–21:30，無休",r:"不用",p:"Times 79 台：1 小時 600 日圓；消費 1,000 日圓以上免費 2 小時。"},
+  {n:"元町・八幡坂",jp:"函館 元町 八幡坂",h:"全天，免費",r:"不用",p:"官方停車說明未查到；建議停山麓駐車場後走路，元町坡道窄。"},
+  {n:"五稜郭塔",jp:"五稜郭タワー",h:"9:00–18:00（最終 17:50），大人 1,200 日圓；補修工程到 11/15，營業照常",r:"不用，便利商店有前售票",p:"塔沒有車場；五稜郭觀光駐車場 1 小時 200 日圓（第三方）。公園開放時間與費用未查到。"},
+  {n:"函館市電",jp:"函館市電",h:"單程 250–300 日圓；市電一日券 800 日圓；市電＋巴士手機券一日 1,600、兩日 2,600 日圓",r:"電車內買或手機買",p:"洽詢 0138-52-1273。市電專用兩日券未查到。"},
+  {n:"湯之川足湯",jp:"函館市熱帯植物園",h:"在熱帶植物園內，園區 9:30–16:30（11–3 月）；足湯收費未查到",r:"不用",p:"120 個免費車位"}]},
+ {g:"支笏湖（11/11–11/12）",k:"shi",items:[
+  {n:"支笏湖遊客中心",jp:"支笏湖ビジターセンター",h:"4–11 月 9:00–17:00（也有寫 17:30）；入館費未查到，散策免費",r:"不用",p:""},
+  {n:"湖畔停車場",jp:"支笏湖温泉駐車場",h:"約 300 台，500 日圓／日，4/1–11/30 收費",r:"",p:"免費替代：休暇村支笏湖約 80 台、波羅比奈附近約 50 台。"},
+  {n:"國道 453 號",jp:"",h:"沒有查到 2026 年 11 月的封閉消息",r:"",p:"11 月中旬可能結冰，確認冬胎；路況看北海道開發局道路資訊。"},
+  {n:"函館 → 支笏湖",jp:"",h:"函館新道／國道 5 號 → 大沼公園 IC → 道央道 → 千歲 IC → 支笏湖",r:"",p:"整段車程與高速費未查到，在 NEXCO 費用查詢輸入「大沼公園」到「千歲」。"}]}
+];
+
+const FOOD = [
+ {g:"札幌（11/6 週五）",items:[
+  {n:"湯咖哩・Shaba 藏",jp:"しゃば蔵",t:"湯咖哩",h:"北 1 西 4。11:30–15:00、17:00–22:00，週日休；有吧台，單人最好入"},
+  {n:"湯咖哩・RAMAI 中央店",jp:"ラマイ 中央店",t:"湯咖哩",h:"營業到 23:00，無休",pr:"約 1,380–1,480 日圓"},
+  {n:"湯咖哩・GARAKU 本店",jp:"GARAKU 札幌本店 スープカレー",t:"湯咖哩",h:"11:30–15:30、17:00–21:00，不定休"},
+  {n:"純連 薄野店",jp:"すみれ すすきの店",t:"味噌拉麵",h:"17:30–00:30；吧台 16 席，單人方便",pr:"約 1,000–1,999 日圓"},
+  {n:"白樺山莊",jp:"白樺山荘 札幌",t:"味噌拉麵",h:"元祖札幌拉麵橫丁。週五 18:00–03:00，週日、週一休；11/6 有營業"},
+  {n:"達摩 本店",jp:"成吉思汗だるま 本店",t:"成吉思汗烤肉",h:"南 5 西 4。17:00–翌 5:00",pr:"晚餐約 2,000–2,999 日圓",x:"單人與吧台未查到"},
+  {n:"二條市場海鮮丼",jp:"どんぶり茶屋 札幌二条市場店",t:"海鮮丼",h:"7:30–17:30，無休",x:"價格未查到"},
+  {n:"聖代・佐藤",jp:"パフェ、珈琲、酒、佐藤 札幌",t:"收尾聖代",h:"13:00–24:00，週五、六到 25:00；二樓吧台 17 席",pr:"約 1,800–2,200 日圓"},
+  {n:"聖代・Parfaiteria PaL",jp:"パフェテリア パル 札幌",t:"收尾聖代",h:"18:00–24:00，週五、六到 26:00；單人沒問題"},
+  {n:"聖代・企鵝堂",jp:"バーラーペンギン堂 札幌",t:"收尾聖代",h:"18:00–24:00，週三休；11/6 有營業"},
+  {n:"唐吉訶德 薄野店",jp:"ドン・キホーテ 札幌すすきの店",t:"購物",h:"13:00–翌 5:00，可免稅（2022 年資料）"}]},
+ {g:"函館（11/10 週二）",items:[
+  {n:"朝市海鮮丼・現釣烏賊",jp:"函館朝市 どんぶり横丁",t:"海鮮",h:"約 5:00–14:00，原則週日休；11/10 週二應有營業",x:"個別店家與價格未查到"},
+  {n:"函館麵廚房紫陽花 本店",jp:"函館麺厨房あじさい 本店",t:"鹽味拉麵",h:"11:00–20:25（LO），第 4 週三休；11/10 有營業。另有函館站店 10:00–19:30 無休"},
+  {n:"幸運小丑漢堡 灣區本店",jp:"ラッキーピエロ ベイエリア本店",t:"在地漢堡",h:"末広町 23-18，10:00–21:00，無休；不能訂位",pr:"約 1,000 日圓"},
+  {n:"長谷川超商 灣區店",jp:"ハセガワストア ベイエリア店",t:"烤雞肉串便當",h:"7:00–22:00；有 5 種口味，接單現做"},
+  {n:"佩雪・米尼翁",jp:"ペシェ・ミニヨン 函館",t:"洋菓子",h:"11:00–18:00，週二、週三休",bad:"11/10 週二休息，請改日或換店"},
+  {n:"金森紅磚倉庫",jp:"金森赤レンガ倉庫",t:"逛街",h:"商店 9:30–19:00，無休"}]},
+ {g:"小樽（11/7 週六、11/8 週日）",items:[
+  {n:"小樽政壽司本店",jp:"おたる政寿司本店",t:"壽司",h:"11:00–15:00、17:00–21:00，週三休；兩天都營業",pr:"海鮮散壽司 2,920、鐵火丼 3,080 日圓"},
+  {n:"魚真",jp:"魚真 小樽 寿司屋通り",t:"壽司",h:"12:00–14:00、16:00–21:00",pr:"小樽握壽司 12 貫 3,900 日圓",bad:"週日休，11/8 休息；11/7 可去"},
+  {n:"聖德太子 飛鳥店",jp:"聖徳太子 飛鳥店 小樽",t:"壽司",h:"11:30–14:00、17:00–21:30，週二休；兩天都營業",pr:"套餐約 1,400–1,500 日圓"},
+  {n:"蒲榮魚板麵包卷",jp:"かま栄 パンロール",t:"小樽名物",h:"花園本店 10:00–18:00；工廠直賣 9:00–18:00；只有元旦休",pr:"一條 264 日圓"},
+  {n:"甘黨",jp:"あまとう 小樽",t:"甜點",h:"10:00–18:30，週三、四休與不定休；兩天應營業"}]},
+ {g:"旭川（11/4 週三晚）",items:[
+  {n:"山頭火 本店",jp:"らーめん山頭火 旭川本店",t:"鹽味拉麵",h:"11:00–21:30，週四休；11/4 可去，旭川站步行即到"},
+  {n:"梅光軒 本店",jp:"梅光軒 旭川本店",t:"醬油拉麵",h:"11:00–15:30、17:00–21:00（LO 20:30），不定休",pr:"醬油／鹽 1,050、味噌 1,100 日圓"},
+  {n:"蜂屋 五條創業店",jp:"ラーメンの蜂屋 五条創業店",t:"拉麵",h:"約 20:00 就關",bad:"11/4 晚較不適合"},
+  {n:"吉乃",jp:"よし乃 旭川",t:"拉麵",h:"11:00–18:00",bad:"晚上不營業"}]},
+ {g:"洞爺湖・支笏湖",items:[
+  {n:"若狹芋本舖 洞爺湖本店",jp:"わかさいも本舗 洞爺湖本店",t:"名產",h:"9:00–18:00，無休"},
+  {n:"波羅比奈食堂（支笏湖）",jp:"ポロピナイ食堂",t:"姬鱒料理",h:"營業期間 4 月上旬至 11 月；11/11–12 實際日期未確認",x:"先電話 0123-25-2041"}]}
+];
+
+
+const DAY_SPOTS = {
+ d1:["旭川拉麵村","常盤圓環","雪之輪旭川（燈飾）"],
+ d2:["白金青池","白鬚瀑布","四季彩之丘","美瑛站・四季資訊館","札幌市區停車與票券"],
+ d3:["中島公園・豐平館","北海道神宮","二條市場","狸小路商店街","藻岩山纜車","札幌啤酒博物館"],
+ d4:["Nikka 余市蒸溜所","小樽水族館","小樽運河・堺町通","青之運河","出抜小路・壽司屋通"],
+ d5:["北一硝子・音樂盒堂","小樽啤酒倉庫 No.1","溫泉街・足湯","洞爺湖遊覽船","有珠山纜車","洞爺湖遊客中心・火山科學館","溫泉街光隧道","花火"],
+ d6:["函館山纜車","函館市電"],
+ d7:["香雪園","函館朝市","金森紅磚倉庫","元町・八幡坂","五稜郭塔","湯之川足湯"],
+ d8:["支笏湖遊客中心","湖畔停車場","國道 453 號","函館 → 支笏湖"],
+ d9:[]
+};
+const EXTRA_SPOTS = [
+ {n:"Nikka 余市蒸溜所",jp:"ニッカウヰスキー 余市蒸溜所",h:"博物館、商店、餐廳 RITA'S KITCHEN 不需預約；最終入館 15:30（從商店側入口）。免費導覽要預約且只有日文，已因名額排不到而放棄。其他營業時間未查到。",r:"博物館與商店不用預約；你開車不能試飲",p:"停車資訊未查到"},
+ {n:"小樽水族館",jp:"おたる水族館",h:"11/23 前營業，9:00–16:00，建議 14:30 前入館",r:"預約規定與前售票價格未查到",p:"停車費未查到"}
+];
+
+const CITIES = [
+ ["旭川","6.2","-1.5","114.5","10/19"],["札幌","8.7","1.6","113.8","10/28"],["小樽","8.3","1.6","152.4","10/31"],
+ ["函館","10.0","1.8","110.8","11/1"],["千歲","8.9","-1.7","80.3","未查到"],["支笏湖畔","7.0","0.2","137.4","未查到"],["洞爺湖","未查到","未查到","未查到","未查到"]
+];
+const SUN = [["11/4","旭川","06:10","16:18"],["11/5","美瑛","06:10","16:17"],["11/6","札幌","約 06:15","約 16:21"],["11/7","小樽","06:18","16:21"],["11/8","洞爺湖","06:19","16:22"],["11/9","函館","約 06:16","約 16:25"],["11/10","函館","約 06:17","約 16:24"],["11/11","支笏湖","06:21","16:16"],["11/12","千歲","06:21","16:14"]];
+
+const TODO = [
+ ["t0","租車已訂：Times 新千歲機場店，11/4 15:00 取車、11/12 13:30 還車，費用已線上預付",1],
+ ["t0d","小樽住宿已訂：Stay's OTARU，11/7，10/30 23:59（日本時間）前可免費取消",1],
+ ["t0c","旭川住宿已訂：ART 旭川酒店，11/4，已付款，11/2 23:59（日本時間）前可免費取消",1],
+ ["t0b","札幌住宿已訂：Premier Hotel -TSUBAKI-，11/5–11/7，11/2 11:59 前可免費取消",1],
+ ["t1","住宿 6 個地點都已訂完"],
+ ["t1b","札幌住宿 Booking.com 顯示待付款 17,296 日圓，確認信用卡會自動扣款、沒有失敗通知"],
+ ["t1g","函館 Yunohama Hotel 在 Booking.com 顯示尚未付款 14,700 日圓，確認信用卡會自動扣款；另確認飯店有沒有同意你 17:00–18:00 入住的要求",0],
+ ["t1h","問湯濱溫泉酒店（+81 138-59-2231）：停車場台數與收費、車高限制；有刺青的話確認能不能用大浴場",0],
+ ["t1f","問大洞爺村大和附樓旅館（+81 142-75-1085）：有沒有停車場與收費、車高限制、有沒有大浴場；免費取消到 10/31 23:59",0],
+ ["t0f","函館住宿已訂：湯濱溫泉酒店，11/9–11/11（2 晚），11/4 23:59（日本時間）前可免費取消",1],
+ ["t0e","洞爺湖住宿已訂：大洞爺村大和附樓旅館，11/8，10/31 23:59（日本時間）前可免費取消",1],
+ ["t1e","問 Stay's OTARU（+81 134-31-6111）：停車場與收費、車高限制、有沒有大浴場；告訴他們預計抵達時間",0],
+ ["t1b2","小樽住宿 Booking.com 顯示待付款 11,949 日圓，確認信用卡會自動扣款",0],
+ ["t1d","問 ART 旭川酒店（+81 166-25-8811）：有沒有停車場與收費、車高限制、有沒有溫泉大浴場",0],
+ ["t1c","問 TSUBAKI 飯店：停車費與車高限制、溫泉是否天然、早餐是否含在房價內（+81 11-821-1111）"],
+ ["t0g","支笏湖住宿已訂：支笏湖第一寶亭留 翠山亭，11/11，11/8 00:00（住宿所在地時間）前可免費取消（Chase Travel）",1],
+ ["t2","問翠山亭：停車場與收費、車高限制、溫泉是否天然、房價是否含晚餐與早餐（確認信沒寫）",0],
+ ["t3","取車時確認：雪胎已裝、ETC 卡是否已含、要不要加 Hokkaido Expressway Pass；ETC 通行費取車時另收"],
+ ["t3b","11/12 還車時間 13:30 比建議早還車晚，決定要不要提早還車（取車時先問店員）"],
+ ["t4","函館山纜車 11/9 是否重開（0138-23-3105）"],
+ ["t5","小樽啤酒倉庫 No.1 改裝休業期間（0134-21-2323）"],
+ ["t6","有珠山纜車 11 月是否停運（0142-75-2401）"],
+ ["t7","Nikka 博物館與商店不用預約；導覽已放棄"],
+ ["t8","想吃的名店先在 Google Maps 確認 11 月實際營業時間"],
+ ["t9","10/26 前後開始看 tenki.jp 與氣象廳兩週氣溫預報"],
+ ["t10","11/1 後看逐日預報，重新檢查下雪的山區行程"],
+ ["t11","出發前一天查道路資訊，確認國道 453 與 230 有沒有結冰資訊"],
+ ["t12","準備現金：停車費與住宿稅"]
+];
+const SAFE = [
+ "日落 16:10–16:30，長途開車把到達時間提前；山路 15:30 前到目的地。",
+ "橋面、隧道出口、山口、背陰處最先結冰；清晨和日落後最危險。",
+ "路面看起來濕的也可能是黑冰，拉長車距、輕踩煞車。",
+ "遇到暴風雪或路面結冰就放棄景點，直接開往住宿點。",
+ "山路和深夜有鹿出沒，車速不要太快。",
+ "加油不要等到油量見底，山區加油站較少。"
+];
+const LINKS = [["tenki.jp 長期預報","https://tenki.jp/long/"],["氣象廳 兩週氣溫預報","https://www.data.jma.go.jp/cpd/twoweek/"],["氣象廳 札幌管區氣象台","https://www.jma-net.go.jp/sapporo/"],["Windy","https://www.windy.com/"],["北海道開發局 道路資訊","http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm"]];
+
+/* ---------- 狀態與工具 ---------- */
+const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["todo","待辦","✓"]];
+const $ = s => document.querySelector(s);
+const st = {tab:"trip", day:"ov", stop:"asa"};
+const sget = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+const sset = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
+const map = q => '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) + '" target="_blank" rel="noopener">地圖</a>';
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+function todayId(){
+  const n = new Date(); const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const i = Math.round((t - TRIP_START)/86400000);
+  return (i>=0 && i<DAYS.length) ? DAYS[i].id : null;
+}
+function countdown(){
+  const n = new Date(); const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const i = Math.round((TRIP_START - t)/86400000);
+  if(i>0) return "距出發 " + i + " 天";
+  const k = Math.round((t - TRIP_START)/86400000);
+  return (k>=0 && k<DAYS.length) ? "旅程第 " + (k+1) + " 天" : "旅程已結束";
+}
+
+/* ---------- 各分頁 ---------- */
+function allSpots(){ const m = {}; SPOTS.forEach(g => { if(g.k!=="alert") g.items.forEach(i => { m[i.n] = i; }); }); EXTRA_SPOTS.forEach(i => { m[i.n] = i; }); return m; }
+function spotCard(i){
+  let h = '<div class="card"><div class="hot"><h3>' + i.n + (i.jp?'<span class="jp">' + i.jp + '</span>':'') + '</h3>' + (i.jp?map(i.jp):'') + '</div><div class="kv">';
+  if(i.h) h += '<div class="k">時間費用</div><div>' + esc(i.h) + '</div>';
+  if(i.r) h += '<div class="k">預約購票</div><div>' + esc(i.r) + '</div>';
+  if(i.p) h += '<div class="k">停車替代</div><div>' + esc(i.p) + '</div>';
+  return h + '</div></div>';
+}
+function alertsCard(){
+  const g = SPOTS.find(x => x.k==="alert");
+  let h = '<div class="card"><h2>景點重要提醒</h2><ul class="tl" style="margin-top:6px">';
+  g.items.forEach(i => { h += '<li class="warn"><div class="t" style="color:var(--warn)">!</div><div class="x"><b>' + i[0] + '</b><br>' + esc(i[1]) + '</div></li>'; });
+  return h + '</ul></div>';
+}
+
+function viewTrip(){
+  const td = todayId();
+  let h = '<div class="chips" role="tablist">';
+  h += '<button class="chip' + (st.day==="ov"?' on':'') + '" data-day="ov"><b>總覽</b><span>9 天</span></button>';
+  DAYS.forEach(d => { h += '<button class="chip' + (st.day===d.id?' on':'') + (td===d.id?' today':'') + '" data-day="' + d.id + '"><b>' + d.date + '</b><span>' + d.w + ' ' + d.short + '</span></button>'; });
+  h += '</div>';
+  if(st.day==="ov"){
+    h += '<div class="card"><h2>9 天總覽</h2><p class="small">點一天看詳細行程。住宿點用橘框標出。</p><div class="ov" style="margin-top:6px">';
+    DAYS.forEach(d => {
+      h += '<button data-day="' + d.id + '"><div class="d">' + d.date + '<span>' + d.w + '</span></div><div class="r">' + d.title + '<div class="small">車程 ' + d.drive + '</div>' + (d.stay ? '<span class="stay">住 ' + d.stay + '</span>' : '') + '</div></button>';
+    });
+    h += '</div></div>';
+    h += '<div class="note warn"><b>三個硬性限制：</b>天狗山纜車 11/4–11/27 整備停駛（搭不到）、函館山纜車 11/8 前停駛（11/9 起恢復，需電話確認）、洞爺湖花火 10/31 已結束。</div>';
+    h += '<div class="card"><h2>已訂</h2>';
+    BOOKED.forEach(b => { h += '<h3 style="margin-top:10px">' + b.t + ' <span class="tag free">已訂</span></h3><p class="small">' + b.n + '</p><div class="kv">'; b.rows.forEach(r => { h += '<div class="k">' + r[0] + '</div><div>' + esc(r[1]) + '</div>'; }); h += '</div>'; });
+    h += '<p class="small" style="margin-top:8px">預約編號與完整確認信請看你的信箱和 Booking.com 訂單。</p></div>';
+    h += alertsCard();
+    return h;
+  }
+  const d = DAYS.find(x => x.id===st.day);
+  h += '<div class="card"><div class="small">' + d.date + '（' + d.w + '）</div><h2>' + d.title + '</h2>';
+  h += '<div class="facts" style="margin-top:10px"><div class="fact"><div class="k">車程</div><div class="v">' + d.drive + '</div></div><div class="fact"><div class="k">日出 / 日落</div><div class="v">' + d.sun + '</div></div><div class="fact" style="grid-column:1/-1"><div class="k">11 月平均氣溫</div><div class="v">' + d.temp + '</div></div></div></div>';
+  if(d.stay) h += '<div class="lodge"><div><div class="k">今晚住宿 · ' + d.stay + (bk(d.stayId) ? ' · 已訂' : '') + '</div><div class="v">' + (bk(d.stayId) ? bk(d.stayId).n : d.stay) + '</div></div><button class="btn" data-stay="' + d.stayId + '">看飯店</button></div>';
+  else h += '<div class="note ok">回程日，沒有住宿。</div>';
+  h += '<div class="card"><h3>時間表</h3><ul class="tl" style="margin-top:6px">';
+  d.items.forEach(it => { h += '<li' + (it[2]?' class="warn"':'') + '><div class="t' + (it[0]?'':' none') + '">' + (it[0]||'·') + '</div><div class="x">' + esc(it[1]) + '</div></li>'; });
+  h += '</ul></div>';
+  const sp = allSpots(), names = DAY_SPOTS[d.id] || [];
+  if(names.length){
+    h += '<h2 style="margin-top:4px">當天景點 <span class="small">' + names.length + ' 處</span></h2>';
+    names.forEach(n => { if(sp[n]) h += spotCard(sp[n]); });
+    h += '<p class="small">「未查到」代表我沒有找到可靠來源，沒有猜測。標示第三方的資料不是官方，出發前請再核對。</p>';
+  }
+  if(d.backup) h += '<div class="note"><b>備案：</b>' + esc(d.backup) + '</div>';
+  h += '<p class="small">時間是依營業時間與日落推算的建議，不是官方排程；車程請用 Google Maps 再確認。</p>';
+  return h;
+}
+
+function viewStay(){
+  let h = '<div class="chips">';
+  STOPS.forEach(s => { h += '<button class="chip' + (st.stop===s.id?' on':'') + '" data-stop="' + s.id + '"><b>' + s.name + '</b><span>' + s.when.split(" · ")[0] + '</span></button>'; });
+  h += '</div>';
+  const s = STOPS.find(x => x.id===st.stop);
+  h += '<div class="lodge"><div><div class="k">' + s.when + '</div><div class="v">' + s.name + '</div></div></div>';
+  h += '<div class="note">' + esc(s.note) + '</div>';
+  s.hotels.forEach((x,ix) => {
+    h += '<div class="card' + ((x.pick||x.booked)?' pick':'') + '"><div class="hot"><h3>' + x.n + (x.c?'（'+x.c+'）':'') + '<span class="jp">' + x.jp + '</span></h3>' + (x.booked?'<span class="tag free">已訂</span>':x.pick?'<span class="tag free">推薦</span>':'') + '</div>';
+    h += '<div class="row" style="margin-top:6px"><span class="tag ' + x.pk + '">' + (x.pk==="free"?'免費停車':x.pk==="paid"?'停車收費':'停車未查到') + '</span><span class="tag">' + esc(x.meal) + '</span></div>';
+    h += '<div class="kv"><div class="k">位置</div><div>' + esc(x.loc) + '</div><div class="k">溫泉</div><div>' + esc(x.onsen) + '</div><div class="k">停車</div><div>' + esc(x.park) + '</div><div class="k">價格</div><div>' + esc(x.price) + '</div><div class="k">餐食</div><div>' + esc(x.meal) + '</div></div>';
+    if(x.bad) h += '<div class="note warn" style="margin-top:8px">' + esc(x.bad) + '</div>';
+    h += '<div style="margin-top:8px">' + map(x.jp) + '</div></div>';
+  });
+  if(s.bath){
+    h += '<h2 style="margin-top:10px">小樽市區溫泉</h2><div class="note">住宿不一定有大浴場，可以另外去這些日歸溫泉。資料多來自第三方，費用與營業時間出發前請再確認。刺青規定都沒查到。</div>';
+    s.bath.forEach(b => {
+      h += '<div class="card"><div class="hot"><h3>' + b.n + '<span class="jp">' + b.jp + '</span></h3>' + map(b.jp) + '</div>';
+      h += '<div class="kv"><div class="k">營業</div><div>' + esc(b.h) + '</div><div class="k">入浴費</div><div>' + esc(b.fee) + '</div><div class="k">備註</div><div>' + esc(b.x) + '</div></div></div>';
+    });
+  }
+  h += '<p class="small">所有 2026 年 11 月的單人房價都沒有查到確切數字；訂房網價格多是「2 人 1 室」的起價或其他日期。請在訂房網選 1 名、指定日期再確認。北海道自 2026/4/1 起收住宿稅，每人每晚約 100–700 日圓，現場付。</p>';
+  return h;
+}
+
+function viewFood(){
+  let h = '<div class="note">紅色標籤代表那天會撲空。駕駛不能喝酒，啤酒類只看展覽或買無酒精。</div>';
+  FOOD.forEach(g => {
+    h += '<h2 style="margin-top:6px">' + g.g + '</h2>';
+    g.items.forEach(i => {
+      h += '<div class="card"><div class="hot"><h3>' + i.n + '<span class="jp">' + i.jp + '</span></h3>' + map(i.jp) + '</div>';
+      h += '<div class="row" style="margin-top:6px"><span class="tag">' + i.t + '</span>' + (i.bad?'<span class="tag bad">'+esc(i.bad)+'</span>':'') + '</div>';
+      h += '<div class="kv"><div class="k">營業</div><div>' + esc(i.h) + '</div>' + (i.pr?'<div class="k">價格</div><div>'+esc(i.pr)+'</div>':'') + (i.x?'<div class="k">備註</div><div>'+esc(i.x)+'</div>':'') + '</div></div>';
+    });
+  });
+  h += '<p class="small">多數來自第三方整理頁，不是官方資料。標「未查到」的欄位沒有找到可靠資訊。</p>';
+  return h;
+}
+
+function viewWx(){
+  setTimeout(() => loadWx(false), 0);
+  let h = wxCard();
+  h += '<div class="note">以下是氣象廳 1991–2020 的 11 月平均值（整月平均，不是逐日）。</div>';
+  h += '<div class="card"><h2>各城市 11 月平均</h2><div class="table-wrap" style="margin-top:6px"><table><tr><th>地點</th><th>高 ℃</th><th>低 ℃</th><th>降水 mm</th><th>初雪平年日</th></tr>';
+  CITIES.forEach(c => { h += '<tr><td><b>' + c[0] + '</b></td><td>' + c[1] + '</td><td>' + c[2] + '</td><td>' + c[3] + '</td><td>' + c[4] + '</td></tr>'; });
+  h += '</table></div><p class="small" style="margin-top:6px">旭川 11 月降雪日平均 20.3 天，最深積雪平均 27 cm。支笏湖畔是自動觀測站，僅供參考。</p></div>';
+  h += '<div class="card"><h2>日出 / 日落</h2><div class="table-wrap" style="margin-top:6px"><table><tr><th>日期</th><th>地點</th><th>日出</th><th>日落</th></tr>';
+  SUN.forEach(r => { h += '<tr><td><b>' + r[0] + '</b></td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td></tr>'; });
+  h += '</table></div><p class="small" style="margin-top:6px">用天文演算法計算，以國立天文台根室資料驗證，誤差約 1 分鐘；標「約」的是兩天之間內插。日落都在 16:10–16:30，山路請在 15:30 前到達。</p></div>';
+  h += '<div class="card"><h2>今年的展望</h2><ul class="tl" style="margin-top:6px">';
+  [["1 個月預報（10/15）","北日本氣溫比平年高的機率 60%；日本海側降水「平年並」或「多」合計 80%。"],["3 個月預報（9/18）","北海道 11 月氣溫偏高 50%、平年 30%、偏低 20%。下一次更新預定 10/20。"],["初雪","平年初雪日大多早於或接近出發日，山區到時可能已有雪；今年偏暖，平地初雪可能較晚。"]].forEach(r => { h += '<li><div class="t none">·</div><div class="x"><b>' + r[0] + '</b><br>' + r[1] + '</div></li>'; });
+  h += '</ul></div>';
+  h += '<div class="card"><h2>穿著</h2><p style="margin-top:6px">洋蔥式穿搭：發熱內衣、刷毛或薄羽絨中層、防風防水外層，加手套、毛帽，鞋底要防滑。旭川、美瑛早晚在 0℃ 附近，比札幌、函館更冷。</p></div>';
+  h += '<div class="card"><h2>什麼時候看實際預報</h2><p style="margin-top:6px">約 10/26 起，兩週氣溫預報和 10 日預報會涵蓋出發日；11/1 之後的逐日預報才比較能參考。出發前一天再看一次道路結冰與降雪。</p><div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start">';
+  LINKS.forEach(l => { h += '<a href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + '</a>'; });
+  h += '</div><p class="small" style="margin-top:6px">氣象廳兩週預報與道路資訊的網址我沒有實際開啟確認。</p></div>';
+  return h;
+}
+
+function viewTodo(){
+  let saved = {}; try { saved = JSON.parse(sget("hk26-checks")||"{}"); } catch(e){}
+  const isOn = t => saved[t[0]]===undefined ? t[2]===1 : !!saved[t[0]];
+  const done = TODO.filter(isOn).length;
+  let h = '<div class="card"><div class="hot"><h2>出發前待辦</h2><span class="tag ' + (done===TODO.length?'free':'') + '" id="prog">' + done + ' / ' + TODO.length + '</span></div><div style="margin-top:6px">';
+  TODO.forEach(t => { h += '<div class="check"><input type="checkbox" id="' + t[0] + '" data-chk="' + t[0] + '"' + ((saved[t[0]]===undefined ? t[2]===1 : saved[t[0]])?' checked':'') + '><label for="' + t[0] + '">' + esc(t[1]) + '</label></div>'; });
+  h += '</div><p class="small" style="margin-top:6px">勾選狀態只存在這支手機的瀏覽器。</p></div>';
+  h += '<div class="card"><h2>開車安全</h2><ul class="tl" style="margin-top:6px">';
+  SAFE.forEach(s => { h += '<li><div class="t none">·</div><div class="x">' + s + '</div></li>'; });
+  h += '</ul></div>';
+  h += '<div class="card"><h2>要打的電話</h2><div class="kv" style="grid-template-columns:120px 1fr"><div class="k">函館山纜車</div><div>0138-23-3105</div><div class="k">小樽啤酒倉庫</div><div>0134-21-2323</div><div class="k">有珠山纜車</div><div>0142-75-2401</div><div class="k">洞爺湖汽船</div><div>0142-75-2137</div><div class="k">波羅比奈食堂</div><div>0123-25-2041</div><div class="k">旭川拉麵村</div><div>0166-48-2153</div><div class="k">札幌啤酒博物館</div><div>011-748-1876</div></div><p class="small" style="margin-top:6px">從台灣撥打請加 +81，並省略區碼開頭的 0。這些是店家與設施的市話。</p></div>';
+  return h;
+}
+
+/* ---------- 費用 ---------- */
+const FIXED = [
+ ["f_air","✈️","機票 長榮 BR116/BR115（稅金，另加 35,000 哩）","TWD",5547,1],
+ ["f_car","🚗","租車 Times（含稅、保險、裝備）","JPY",49780,0],
+ ["f_asa","🏨","旭川 ART 旭川酒店 1 晚","TWD",1286,1],
+ ["f_spk","🏨","札幌 Premier Hotel TSUBAKI 2 晚","JPY",17296,0],
+ ["f_ota","🏨","小樽 Stay's OTARU 1 晚","JPY",11949,0],
+ ["f_toy","🏨","洞爺湖 大洞爺村大和附樓 1 晚","TWD",1779,1],
+ ["f_hak","🏨","函館 湯濱溫泉酒店 2 晚","JPY",14700,0],
+ ["f_shi","🏨","支笏湖 翠山亭 1 晚（Chase）","USD",187.02,1]
+];
+const TAGS = [["gas","⛽","加油"],["bf","🍳","早餐"],["lu","🍱","午餐"],["di","🍣","晚餐"],["snk","🍦","點心飲料"],["tkt","🎟️","門票"],["rope","🚡","纜車"],["onsen","♨️","泡湯"],["toll","🛣️","高速費"],["park","🅿️","停車"],["gift","🎁","伴手禮"],["tran","🚃","交通"],["tax","🏨","住宿稅"],["oth","💰","其他"]];
+const jget = (k,d) => { try { const v = JSON.parse(sget(k)); return v==null?d:v; } catch(e){ return d; } };
+const fmt = n => Math.round(n).toLocaleString("en-US");
+const costSt = {f:{day:null,tag:"di",amt:"",cur:"JPY",note:"",edit:null}};
+function rates(){ return Object.assign({JPY:0.2051,USD:31,TWD:1}, jget("hk26-rate",{})); }
+function fixedState(){ return jget("hk26-fixed",{}); }
+function fixedTwd(f,R,fs){ const o = fs[f[0]]||{}; const a = o.amt!==undefined ? o.amt : f[4]; return a*R[f[3]]; }
+function fixedPaid(f,fs){ const o = fs[f[0]]||{}; return o.paid!==undefined ? !!o.paid : f[5]===1; }
+function tagOf(id){ return TAGS.find(t => t[0]===id) || TAGS[TAGS.length-1]; }
+function costTotals(){
+  const R = rates(), fs = fixedState(), ex = jget("hk26-exp",[]);
+  let fixed=0, fixedPaidSum=0; FIXED.forEach(f => { const v = fixedTwd(f,R,fs); fixed+=v; if(fixedPaid(f,fs)) fixedPaidSum+=v; });
+  const spent = ex.reduce((s,e) => s+e.twd, 0);
+  return {R,fs,ex,fixed,fixedPaidSum,spent,total:fixed+spent};
+}
+function viewCost(){
+  const T = costTotals(), R = T.R, F = costSt.f;
+  const td = todayId(); if(!F.day) F.day = td || DAYS[0].id;
+  const hot = FIXED.filter(f => f[1]==="🏨"), others = FIXED.filter(f => f[1]!=="🏨");
+  let h = '<div class="card"><h2>實際總額（台幣）</h2><div style="font-size:30px;font-weight:700;margin:4px 0" id="gt">NT$ ' + fmt(T.total) + '</div>' +
+    '<div class="kv" style="grid-template-columns:150px 1fr"><div class="k">已訂（機票、租車、住宿）</div><div>NT$ ' + fmt(T.fixed) + '</div><div class="k">旅途花費</div><div>NT$ ' + fmt(T.spent) + '</div><div class="k">已付（已訂中已勾選）</div><div>NT$ ' + fmt(T.fixedPaidSum) + '</div><div class="k">尚未付（待付／現場付）</div><div>NT$ ' + fmt(T.fixed-T.fixedPaidSum) + '</div></div>' +
+    '<p class="small" style="margin-top:6px">另有 35,000 哩（機票）。油錢、高速費等請在下面記帳。</p></div>';
+  /* 記帳表單 */
+  h += '<div class="card"><h2>記一筆花費</h2><div class="chips" style="margin:8px 0">';
+  DAYS.forEach(d => { h += '<button class="chip' + (F.day===d.id?' on':'') + '" data-cday="' + d.id + '"><b>' + d.date + '</b><span>' + d.w + '</span></button>'; });
+  h += '</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">';
+  TAGS.forEach(t => { h += '<button class="chip' + (F.tag===t[0]?' on':'') + '" data-ctag="' + t[0] + '" style="min-width:0;padding:6px 2px"><span style="font-size:22px;display:block">' + t[1] + '</span><span style="font-size:12px">' + t[2] + '</span></button>'; });
+  h += '</div><div style="display:flex;gap:8px;margin-top:10px"><input id="c_amt" class="inp" inputmode="decimal" placeholder="金額" value="' + esc(F.amt) + '" style="flex:1;min-width:0">' +
+    '<button class="chip' + (F.cur==="JPY"?' on':'') + '" data-ccur="JPY" style="min-width:56px">¥ 日圓</button><button class="chip' + (F.cur==="TWD"?' on':'') + '" data-ccur="TWD" style="min-width:56px">NT$ 台幣</button></div>' +
+    '<input id="c_note" class="inp" placeholder="備註（例如：Seicomart、千歲 IC）" value="' + esc(F.note) + '" style="margin-top:8px;width:100%">';
+  const preview = (parseFloat(F.amt)||0) * R[F.cur];
+  h += '<p class="small" id="c_prev" style="margin-top:6px">' + (F.cur==="JPY" ? '約 NT$ ' + fmt(preview) + '（1 日圓 = ' + R.JPY + ' 台幣）' : '') + '</p>' +
+    '<div style="display:flex;gap:8px"><button class="chip on" data-cadd="1" style="flex:1;font-weight:600">' + (F.edit?'儲存修改':'新增') + '</button>' + (F.edit?'<button class="chip" data-ccancel="1">取消</button>':'') + '</div></div>';
+  /* 花費清單 */
+  h += '<div class="card"><h2>每日花費</h2>';
+  const ex = T.ex; let any = false;
+  DAYS.forEach(d => {
+    const L = ex.filter(e => e.day===d.id); if(!L.length) return; any = true;
+    const sum = L.reduce((s,e) => s+e.twd, 0);
+    h += '<div class="hot" style="margin-top:10px"><h3>' + d.date + '（' + d.w + '）' + d.short + '</h3><span class="tag">NT$ ' + fmt(sum) + '</span></div>';
+    L.forEach(e => { const t = tagOf(e.tag);
+      h += '<div style="display:grid;grid-template-columns:34px 1fr auto auto;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="font-size:22px">' + t[1] + '</span><button class="lnk" data-cedit="' + e.id + '"><b>' + t[2] + '</b>' + (e.note?' · '+esc(e.note):'') + '<br><span class="small">' + (e.cur==="JPY" ? '¥' + fmt(e.amt) + ' → ' : '') + 'NT$ ' + fmt(e.twd) + '</span></button><b>' + fmt(e.twd) + '</b>' + (costSt.ask===e.id ? '<span style="display:flex;gap:6px"><button class="chip" data-cdel2="' + e.id + '" style="color:var(--warn);min-width:0;padding:8px 10px">確定刪除</button><button class="chip" data-cdel0="1" style="min-width:0;padding:8px 10px">取消</button></span>' : '<button class="lnk" data-cdel="' + e.id + '" aria-label="刪除" style="color:var(--warn);font-size:20px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">✕</button>') + '</div>'; });
+  });
+  if(!any) h += '<p class="small">還沒有記錄。點上面的圖案與金額後按新增，點一筆可以修改。</p>';
+  h += '</div>';
+  /* 分類統計 */
+  const by = {}; ex.forEach(e => { by[e.tag] = (by[e.tag]||0) + e.twd; });
+  const rows = TAGS.filter(t => by[t[0]]);
+  if(rows.length){ h += '<div class="card"><h2>分類統計</h2><div class="kv" style="grid-template-columns:110px 1fr">'; rows.forEach(t => { h += '<div class="k">' + t[1] + ' ' + t[2] + '</div><div>NT$ ' + fmt(by[t[0]]) + '</div>'; }); h += '</div></div>'; }
+  /* 已訂明細 */
+  h += '<div class="card"><h2>已訂明細（台幣）</h2>';
+  const line = f => { const v = fixedTwd(f,R,T.fs), p = fixedPaid(f,T.fs);
+    return '<div class="check nostrike"><input type="checkbox" id="' + f[0] + '" data-fpaid="' + f[0] + '"' + (p?' checked':'') + '><label for="' + f[0] + '">' + f[1] + ' ' + f[2] + '<br><span class="small">' + (f[3]==="TWD" ? '台幣計價' : (f[3]==="JPY"?'¥':'US$') + fmt(((T.fs[f[0]]||{}).amt!==undefined?(T.fs[f[0]]||{}).amt:f[4])) + (f[3]==="USD"?'（估）':'')) + ' → <b>NT$ ' + fmt(v) + '</b>' + (p?' · 已付':' · 待付') + '</span></label></div>'; };
+  others.forEach(f => { h += line(f); });
+  const hs = hot.reduce((s,f) => s+fixedTwd(f,R,T.fs), 0);
+  h += '<div class="hot" style="margin-top:10px"><h3>住宿</h3><span class="tag">NT$ ' + fmt(hs) + '</span></div>';
+  hot.forEach(f => { h += line(f); });
+  h += '<p class="small" style="margin-top:6px">勾選＝已付款。日圓與美元項目依下面匯率換算。</p></div>';
+  const ok = (function(){ try { localStorage.setItem("hk26-t","1"); return localStorage.getItem("hk26-t")==="1"; } catch(e){ return false; } })();
+  const code = "HK26:" + JSON.stringify({e:T.ex, f:T.fs, r:jget("hk26-rate",{})});
+  h += '<div class="card"' + (ok?'':' style="border-color:var(--warn)"') + '><h2>備份與還原</h2>' + (ok ? '' : '<p class="small" style="color:var(--warn)"><b>這種開啟方式無法保存資料，關掉頁面就會清空。</b>請常按「複製備份」貼到備忘錄。</p>') +
+    '<p class="small">記完帳按「複製備份」，貼到手機備忘錄。頁面清空時，把備份貼回下面的框，按「還原」。</p>' +
+    '<textarea id="bk" class="inp" rows="4" style="width:100%;margin-top:6px;font-size:13px">' + esc(costSt.bk!==undefined ? costSt.bk : code) + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px"><button class="chip on" data-bkcopy="1" style="flex:1">複製備份</button><button class="chip" data-bkrestore="1" style="flex:1">還原</button></div><p class="small" id="bkmsg" style="margin-top:6px"></p></div>';
+  h += '<div class="card"><h2>匯率設定</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label>1 日圓 =</label><input id="r_jpy" class="inp" inputmode="decimal" value="' + R.JPY + '" style="width:80px"><label>1 美元 =</label><input id="r_usd" class="inp" inputmode="decimal" value="' + R.USD + '" style="width:80px"><label>台幣</label></div><p class="small" style="margin-top:6px">已記的花費以記帳當下的匯率換算，之後改匯率只影響已訂明細與之後的記錄。資料只存在這支手機的瀏覽器。</p></div>';
+  return h;
+}
+
+/* ---------- 即時天氣、路況、停車 ---------- */
+const PLACES = [["asa","旭川",43.7706,142.3650],["bie","美瑛",43.5886,142.4666],["sap","札幌",43.0618,141.3545],["ota","小樽",43.1907,140.9947],["toy","洞爺湖",42.5627,140.8161],["hak","函館",41.7688,140.7288],["shi","支笏湖",42.7886,141.3995],["chi","新千歲機場",42.7752,141.6923]];
+const STAY2PLACE = {asa:"asa", spk:"sap", ota:"ota", toy:"toy", hak:"hak", shi:"shi"};
+const live = {place:null, gps:null, gpsErr:"", wx:{}, wxBusy:false, wxErr:"", pk:{}, pkBusy:false, pkErr:""};
+function curPlaceId(){
+  if(live.place) return live.place;
+  const t = todayId(), d = t && DAYS.find(x => x.id===t);
+  let p = d && STAY2PLACE[d.stayId]; const sp = sget("hk26-place");
+  live.place = p || (sp && (sp==="gps" || PLACES.some(x => x[0]===sp)) ? sp : "sap"); return live.place;
+}
+function curLoc(){
+  const id = curPlaceId();
+  if(id==="gps" && live.gps) return {id:"gps", name:"目前位置", lat:live.gps[0], lon:live.gps[1]};
+  const p = PLACES.find(x => x[0]===id) || PLACES[2]; return {id:p[0], name:p[1], lat:p[2], lon:p[3]};
+}
+function placeChips(att){
+  const id = curPlaceId(); let h = '<div class="chips" style="margin:6px 0 10px">';
+  h += '<button class="chip' + (id==="gps"?' on':'') + '" data-gps="' + att + '"><b>📍</b><span>目前位置</span></button>';
+  PLACES.forEach(p => { h += '<button class="chip' + (id===p[0]?' on':'') + '" data-place="' + p[0] + '"><b>' + p[1] + '</b></button>'; });
+  return h + '</div>';
+}
+const WX = c => c===0?["☀️","晴"]:c===1?["🌤️","大致晴朗"]:c===2?["⛅","局部多雲"]:c===3?["☁️","陰"]:(c===45||c===48)?["🌫️","霧"]:(c>=51&&c<=57)?["🌦️","毛毛雨"]:(c>=61&&c<=67)?["🌧️","下雨"]:(c>=71&&c<=77)?["❄️","下雪"]:(c>=80&&c<=82)?["🌦️","陣雨"]:(c===85||c===86)?["🌨️","陣雪"]:(c>=95)?["⛈️","雷雨"]:["🌡️","—"];
+const isSnow = c => (c>=71&&c<=77)||c===85||c===86;
+const isWet = c => (c>=51&&c<=67)||(c>=80&&c<=82)||c>=95;
+function timeAgo(t){ const m = Math.round((Date.now()-t)/60000); return m<1 ? "剛剛" : m<60 ? m + " 分鐘前" : Math.round(m/60) + " 小時前"; }
+async function loadWx(force){
+  const L = curLoc(), key = L.id==="gps" ? "gps" : L.id;
+  if(L.id==="gps" && !live.gps) return;
+  const c = live.wx[key] || jget("hk26-wx-" + key, null);
+  if(c && !live.wx[key]) live.wx[key] = c;
+  if(!force && c && Date.now()-c.t < 600000) return;
+  if(!force && live.wxFail && Date.now()-live.wxFail < 60000) return;
+  if(live.wxBusy) return; live.wxBusy = true; live.wxErr = ""; if(st.tab==="wx") render(true);
+  try{
+    const u = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon + "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,snowfall,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum,precipitation_sum,sunrise,sunset&timezone=Asia%2FTokyo&forecast_days=3&wind_speed_unit=kmh";
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 12000);
+    const r = await fetch(u, {signal:ctl.signal}); clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json(); if(!d.current || !d.daily) throw new Error("格式不符");
+    live.wx[key] = {t:Date.now(), d:d}; sset("hk26-wx-" + key, JSON.stringify(live.wx[key])); live.wxFail = 0;
+  }catch(e){ live.wxFail = Date.now(); live.wxErr = "無法取得即時預報（" + (e && e.message ? e.message : "連線失敗") + "）"; }
+  live.wxBusy = false; if(st.tab==="wx") render(true);
+}
+function roadRisk(d){
+  if(!d) return null; const D = d.daily, C = d.current; let lv = 0, why = [];
+  const snow = isSnow(C.weather_code) || C.snowfall>0 || D.snowfall_sum[0]>0 || D.snowfall_sum[1]>0;
+  if(snow){ lv = 2; why.push("今明兩天有降雪，要冬胎，放慢車速，拉長車距"); }
+  if(Math.min(D.temperature_2m_min[0], D.temperature_2m_min[1]) <= 1){ lv = Math.max(lv,1); why.push("氣溫 1℃ 以下，早晚橋面、陰影處、隧道口易結冰（黑冰）"); }
+  if(isWet(C.weather_code) && C.temperature_2m<=3){ lv = 2; why.push("目前下雨且氣溫低，路面可能結冰"); }
+  if(!why.length) why.push("目前預報沒有降雪或低溫，仍要留意山路與日落後路況");
+  return {lv:lv, why:why};
+}
+function wxFallback(L){
+  const q = encodeURIComponent(L.name + " 天氣");
+  return '<p style="margin-top:4px"><b>' + esc(L.name) + '</b> 的即時預報暫時讀不到（可能沒有網路）。請按下面的連結：</p><div class="links" style="margin-top:8px;gap:10px 16px">' +
+  '<a href="https://www.google.com/search?q=' + q + '" target="_blank" rel="noopener"><b>Google 天氣</b>（圖示、逐時、7 日）</a>' +
+  '<a href="https://www.windy.com/' + L.lat + '/' + L.lon + '?' + L.lat + ',' + L.lon + ',9" target="_blank" rel="noopener"><b>Windy</b>（雨雲、風、降雪）</a>' +
+  '<a href="https://www.jma.go.jp/bosai/forecast/" target="_blank" rel="noopener"><b>氣象廳</b>（官方預報）</a>' +
+  '<a href="https://tenki.jp/" target="_blank" rel="noopener"><b>tenki.jp</b></a></div><p class="small" style="margin-top:8px">下面有各地 11 月平均氣溫、日出日落和穿著建議，不用網路也能看。</p>';
+}
+function wxCard(){
+  const L = curLoc(), key = L.id==="gps"?"gps":L.id, c = live.wx[key] || jget("hk26-wx-" + key, null);
+  let h = '<div class="card">' + placeChips("wx");
+  if(live.gpsErr) h += '<p class="small" style="color:var(--warn)">' + esc(live.gpsErr) + '</p>';
+  if(L.id==="gps" && !live.gps) return h + '<p class="small">請按「📍目前位置」並允許定位。</p></div>';
+  if(!c && !live.wxBusy){ return h + wxFallback(L) + '</div>'; }
+  if(!c){ return h + '<p>' + (live.wxBusy ? "讀取即時預報中…" : esc(live.wxErr || "尚未載入")) + '</p>' + (live.wxBusy?'':'<button class="chip on" data-wxref="1">重新載入</button>') + '<p class="small" style="margin-top:8px">連不上時，請用下面的連結看預報。</p></div>'; }
+  const d = c.d, C = d.current, D = d.daily, w = WX(C.is_day===0 && C.weather_code<=1 ? 99 : C.weather_code), wn = C.is_day===0 && C.weather_code<=1 ? ["🌙", C.weather_code===0?"晴":"大致晴朗"] : WX(C.weather_code);
+  h += '<div class="hot"><h2>' + esc(L.name) + ' · 今日</h2><span class="tag">' + timeAgo(c.t) + '更新</span></div>';
+  h += '<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin:8px 0"><div><div style="font-size:18px;font-weight:600">' + wn[1] + '</div><div class="small">降雨機率 <b>' + (D.precipitation_probability_max[0]==null?'—':D.precipitation_probability_max[0] + '%') + '</b></div><div class="small">風 ' + Math.round(C.wind_speed_10m) + ' km/h</div></div>' +
+    '<div style="font-size:84px;line-height:1;text-align:center" role="img" aria-label="' + wn[1] + '">' + wn[0] + '</div>' +
+    '<div style="text-align:right"><div style="font-size:40px;font-weight:700;line-height:1.1">' + Math.round(C.temperature_2m) + '°</div><div class="small">體感 ' + Math.round(C.apparent_temperature) + '°</div><div class="small">高 ' + Math.round(D.temperature_2m_max[0]) + '° / 低 ' + Math.round(D.temperature_2m_min[0]) + '°</div></div></div>';
+  const extra = []; if(D.snowfall_sum[0]>0) extra.push("降雪 " + D.snowfall_sum[0] + " cm"); if(D.precipitation_sum[0]>0) extra.push("降水 " + D.precipitation_sum[0] + " mm");
+  h += '<p class="small">日出 ' + D.sunrise[0].slice(11) + ' · 日落 ' + D.sunset[0].slice(11) + (extra.length ? ' · ' + extra.join(" · ") : '') + '</p>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">';
+  [1,2].forEach(i => { const x = WX(D.weather_code[i]); const dt = new Date(D.sunrise[i].slice(0,10) + "T00:00:00"); const lab = i===1 ? "明天" : "後天";
+    h += '<div style="border:1px solid var(--line);border-radius:10px;padding:8px;display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center"><span style="font-size:34px;line-height:1">' + x[0] + '</span><div><div class="small"><b>' + lab + '</b> ' + (dt.getMonth()+1) + '/' + dt.getDate() + ' ' + x[1] + '</div><div><b>' + Math.round(D.temperature_2m_max[i]) + '°</b> / ' + Math.round(D.temperature_2m_min[i]) + '°</div><div class="small">雨 ' + (D.precipitation_probability_max[i]==null?'—':D.precipitation_probability_max[i] + '%') + (D.snowfall_sum[i]>0 ? ' · 雪 ' + D.snowfall_sum[i] + 'cm' : '') + '</div></div></div>'; });
+  h += '</div>';
+  if(live.wxErr) h += '<p class="small" style="color:var(--warn);margin-top:8px">' + esc(live.wxErr) + '，目前顯示的是舊資料。</p>';
+  h += '<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="chip" data-wxref="1">' + (live.wxBusy?'更新中…':'立即更新') + '</button><span class="small">資料來源 Open-Meteo，每 10 分鐘自動更新。</span></div></div>';
+  const R = roadRisk(d), lab = ["低","中","高"][R.lv], cls = R.lv===0?"free":"";
+  h += '<div class="card"><div class="hot"><h2>路面狀況（依天氣推估）</h2><span class="tag ' + cls + '">結冰／降雪風險：' + lab + '</span></div><ul class="tl" style="margin-top:6px">';
+  R.why.forEach(x => { h += '<li><div class="t none">·</div><div class="x">' + esc(x) + '</div></li>'; });
+  h += '</ul><p class="small" style="margin-top:6px"><b>這不是即時塞車資訊。</b>即時車況請看下面的連結，它們由各單位提供。</p><div class="links">';
+  h += '<a href="https://www.google.com/maps/@' + L.lat + ',' + L.lon + ',12z/data=!5m1!1e1" target="_blank" rel="noopener">Google 地圖車流（紅黃綠）</a><a href="https://www.jartic.or.jp/" target="_blank" rel="noopener">JARTIC 交通資訊</a><a href="http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm" target="_blank" rel="noopener">北海道開發局 道路資訊</a></div></div>';
+  return h;
+}
+function hav(a,b,c,d){ const R = 6371000, r = x => x*Math.PI/180, dl = r(c-a), dn = r(d-b); const k = Math.sin(dl/2)**2 + Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)**2; return 2*R*Math.asin(Math.sqrt(k)); }
+async function loadPk(){
+  const L = curLoc(); if(L.id==="gps" && !live.gps) return; if(live.pkBusy) return; live.pkBusy = true; live.pkErr = ""; if(st.tab==="park") render(true);
+  const q = '[out:json][timeout:20];nwr["amenity"="parking"](around:700,' + L.lat + ',' + L.lon + ');out center tags 60;';
+  const hosts = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"]; let ok = false, last = "";
+  for(const hst of hosts){
+    try{ const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+      const r = await fetch(hst + "?data=" + encodeURIComponent(q), {signal:ctl.signal}); clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json(); if(!Array.isArray(d.elements)) throw new Error("格式不符");
+      const list = d.elements.map(e => { const la = e.lat!=null?e.lat:(e.center&&e.center.lat), lo = e.lon!=null?e.lon:(e.center&&e.center.lon); return la==null?null:{t:e.tags||{}, la:la, lo:lo, m:hav(L.lat,L.lon,la,lo)}; }).filter(Boolean);
+      live.pk[L.id] = {t:Date.now(), list:list.sort((a,b) => a.m-b.m)}; ok = true; break;
+    }catch(e){ last = e && e.message ? e.message : "連線失敗"; }
+  }
+  if(!ok) live.pkErr = "無法取得停車場資料（" + last + "）";
+  live.pkBusy = false; if(st.tab==="park") render(true);
+}
+function pkRow(p, i){
+  const t = p.t, name = t.name || t["name:ja"] || t["name:en"] || "未命名停車場";
+  const priv = t.access==="private" || t.access==="customers" || t.access==="permit";
+  const type = {"surface":"平面","multi-storey":"立體","underground":"地下","rooftop":"屋頂","street_side":"路邊","lane":"路邊"}[t.parking] || "";
+  const fee = t.fee==="yes" ? "收費" : t.fee==="no" ? "免費" : "收費未登錄";
+  let rows = '';
+  rows += '<div class="k">費用</div><div><b>' + fee + '</b>' + (t.charge ? '：' + esc(t.charge) : '') + '</div>';
+  const wk = t["charge:conditional"] || t["fee:conditional"]; if(wk) rows += '<div class="k">平日／假日</div><div>' + esc(wk) + '</div>';
+  if(!t.charge && !wk) rows += '<div class="k">平日／假日</div><div class="small">OSM 沒有價格資料，請看現場看板</div>';
+  rows += '<div class="k">時間</div><div>' + (t.opening_hours ? esc(t.opening_hours) : '未登錄') + (t.maxstay ? '；限停 ' + esc(t.maxstay) : '') + '</div>';
+  rows += '<div class="k">車位</div><div>' + (t.capacity ? esc(t.capacity) + ' 格（總數，不是剩餘）' : '總數未登錄') + (t.maxheight ? '；限高 ' + esc(t.maxheight) + ' m' : '') + '</div>';
+  return '<div class="card"' + (priv?' style="opacity:.7"':'') + '><div class="hot"><h3>' + (i+1) + '. ' + esc(name) + '</h3><span class="tag">' + (p.m<1000 ? Math.round(p.m) + ' m' : (p.m/1000).toFixed(1) + ' km') + '</span></div><p class="small">' + [type, priv?'私人／顧客專用':''].filter(Boolean).join(' · ') + '</p><div class="kv" style="grid-template-columns:84px 1fr">' + rows + '</div><div class="links" style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + p.la + ',' + p.lo + '" target="_blank" rel="noopener">導航</a><a href="https://www.google.com/maps/search/?api=1&query=' + p.la + ',' + p.lo + '" target="_blank" rel="noopener">地圖</a></div></div>';
+}
+function viewPark(){
+  const L = curLoc(), sp = allSpots(), c = live.pk[L.id];
+  let h = '<div class="note"><b>說明：</b>沒有公開的免費來源提供北海道停車場的「剩餘車位」，所以不顯示空位數。下面搜尋的是 OpenStreetMap 登錄的停車場，價格、時間、車位總數只有被登錄的才有。要看即時滿空，請用 Google 地圖或 Times、NAVITIME 的 App。</div>';
+  h += '<div class="card"><h2>找附近停車場</h2>' + placeChips("park");
+  if(live.gpsErr) h += '<p class="small" style="color:var(--warn)">' + esc(live.gpsErr) + '</p>';
+  h += '<button class="chip on" data-pksearch="1" style="width:100%">' + (live.pkBusy ? '搜尋中…' : '搜尋 ' + esc(L.name) + ' 附近 700 公尺') + '</button>';
+  if(live.pkErr) h += '<p class="small" style="color:var(--warn);margin-top:8px">' + esc(live.pkErr) + '。請改用下面的 Google 地圖連結。</p>';
+  if(c) h += '<p class="small" style="margin-top:8px">' + timeAgo(c.t) + '搜尋，找到 ' + c.list.length + ' 處。</p>';
+  h += '<div class="links" style="gap:10px 16px;margin-top:8px"><a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent("停車場") + '" target="_blank" rel="noopener"><b>Google 地圖：我附近的停車場</b></a><a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent("コインパーキング " + L.name) + '" target="_blank" rel="noopener"><b>' + esc(L.name) + ' 的投幣停車場</b></a></div></div>';
+  if(c){ if(!c.list.length) h += '<div class="card"><p>這附近沒有登錄的停車場，請改用 Google 地圖。</p></div>'; c.list.slice(0,15).forEach((p,i) => { h += pkRow(p,i); }); if(c.list.length>15) h += '<p class="small">只列出最近的 15 處。</p>'; }
+  const rows = Object.keys(sp).map(k => sp[k]).filter(i => i.p);
+  h += '<div class="card"><h2>景點停車資訊（我查的）</h2>';
+  rows.forEach(i => { h += '<div style="border-top:1px solid var(--line);padding:8px 0"><div class="hot"><b>' + esc(i.n) + '</b>' + (i.jp ? map(i.jp) : '') + '</div><div class="small" style="margin-top:2px">' + esc(i.p) + '</div></div>'; });
+  return h + '<p class="small" style="margin-top:6px">資料是做行程時查的，價格會變，出發前請再確認。</p></div>';
+}
+function askGps(att){
+  live.gpsErr = "";
+  if(!navigator.geolocation){ live.gpsErr = "這個瀏覽器不支援定位，請選城市。"; render(true); return; }
+  navigator.geolocation.getCurrentPosition(p => { live.gps = [p.coords.latitude, p.coords.longitude]; live.place = "gps"; sset("hk26-place","gps"); render(true); if(att==="wx") loadWx(true); else loadPk(); },
+    () => { live.gpsErr = "無法取得定位（可能被拒絕或此頁面不允許），請改選城市。"; render(true); }, {enableHighAccuracy:false, timeout:10000, maximumAge:60000});
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-place],[data-gps],[data-wxref],[data-pksearch]"); if(!b) return; const d = b.dataset;
+  if(d.place){ live.place = d.place; live.gpsErr = ""; sset("hk26-place", d.place); render(true); if(st.tab==="wx") loadWx(false); }
+  else if(d.gps){ askGps(d.gps); }
+  else if(d.wxref){ loadWx(true); }
+  else if(d.pksearch){ loadPk(); }
+});
+
+/* ---------- 繪製與事件 ---------- */
+const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo};
+function render(keepScroll){
+  $("#main").innerHTML = VIEWS[st.tab]();
+  $("#nav").innerHTML = TABS.map(t => '<button data-tab="' + t[0] + '" class="' + (st.tab===t[0]?'on':'') + '"' + (st.tab===t[0]?' aria-current="page"':'') + '>' + t[1] + '</button>').join("");
+  $("#count").textContent = countdown();
+  if(!keepScroll) window.scrollTo(0,0);
+  const on = document.querySelector(".chips .chip.on"); if(on && on.scrollIntoView) on.scrollIntoView({inline:"center",block:"nearest"});
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-tab],[data-day],[data-stop],[data-stay]"); if(!b) return;
+  if(b.dataset.tab){ st.tab=b.dataset.tab; sset("hk26-tab",st.tab); }
+  else if(b.dataset.day){ st.day=b.dataset.day; sset("hk26-day",st.day); }
+  else if(b.dataset.stop){ st.stop=b.dataset.stop; }
+  else if(b.dataset.stay){ st.tab="stay"; st.stop=b.dataset.stay; sset("hk26-tab","stay"); }
+  render(!!(b.dataset.day||b.dataset.stop));
+});
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-chk]"); if(!c) return;
+  let saved = {}; try { saved = JSON.parse(sget("hk26-checks")||"{}"); } catch(x){}
+  saved[c.dataset.chk] = c.checked; sset("hk26-checks", JSON.stringify(saved));
+  const n = TODO.filter(t => saved[t[0]]===undefined ? t[2]===1 : !!saved[t[0]]).length; const p = $("#prog"); if(p){ p.textContent = n + " / " + TODO.length; p.className = "tag" + (n===TODO.length?" free":""); }
+});
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-bkcopy],[data-bkrestore]"); if(!b) return;
+  const ta = $("#bk"), msg = $("#bkmsg");
+  if(b.dataset.bkcopy){
+    const c = "HK26:" + JSON.stringify({e:jget("hk26-exp",[]), f:fixedState(), r:jget("hk26-rate",{})}); ta.value = c;
+    ta.focus(); ta.select(); try { ta.setSelectionRange(0, c.length); } catch(x){}
+    let done = false; try { done = document.execCommand("copy"); } catch(x){}
+    if(!done && navigator.clipboard){ navigator.clipboard.writeText(c).then(() => { msg.textContent = "已複製，請貼到備忘錄。"; }, () => { msg.textContent = "文字已選取，請長按選「拷貝」。"; }); return; }
+    msg.textContent = done ? "已複製，請貼到備忘錄。" : "文字已選取，請長按選「拷貝」。";
+  } else {
+    const t = ta.value.trim(); let o;
+    try { if(t.indexOf("HK26:")!==0) throw 0; o = JSON.parse(t.slice(5)); if(!Array.isArray(o.e)) throw 0; } catch(x){ msg.textContent = "格式不對，請貼上完整的備份文字。"; return; }
+    sset("hk26-exp", JSON.stringify(o.e)); sset("hk26-fixed", JSON.stringify(o.f||{})); sset("hk26-rate", JSON.stringify(o.r||{}));
+    costSt.bk = undefined; render(true); const m = $("#bkmsg"); if(m) m.textContent = "已還原 " + o.e.length + " 筆。";
+  }
+});
+function cnow(){ const F = costSt.f; const a = $("#c_amt"), n = $("#c_note"); if(a) F.amt = a.value; if(n) F.note = n.value; }
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-cday],[data-ctag],[data-ccur],[data-cadd],[data-ccancel],[data-cedit],[data-cdel],[data-cdel0],[data-cdel2]"); if(!b) return;
+  const F = costSt.f; cnow(); costSt.bk = undefined; const d = b.dataset;
+  if(d.cday) F.day = d.cday; else if(d.ctag) F.tag = d.ctag; else if(d.ccur) F.cur = d.ccur;
+  else if(d.ccancel) costSt.f = {day:F.day,tag:"di",amt:"",cur:"JPY",note:"",edit:null};
+  else if(d.cdel){ costSt.ask = d.cdel; }
+  else if(d.cdel0){ costSt.ask = null; }
+  else if(d.cdel2){ sset("hk26-exp", JSON.stringify(jget("hk26-exp",[]).filter(x => x.id!==d.cdel2))); costSt.ask = null; }
+  else if(d.cedit){ const x = jget("hk26-exp",[]).find(y => y.id===d.cedit); if(x){ costSt.f = {day:x.day,tag:x.tag,amt:String(x.amt),cur:x.cur,note:x.note||"",edit:x.id}; } }
+  else if(d.cadd){
+    const amt = parseFloat(F.amt); if(!(amt>0)){ const a = $("#c_amt"); if(a) a.focus(); return; }
+    const R = rates(); const rec = {id:F.edit || ("e"+Date.now()), day:F.day, tag:F.tag, amt:amt, cur:F.cur, note:F.note.trim(), twd:amt*R[F.cur]};
+    let L = jget("hk26-exp",[]); if(F.edit){ L = L.map(x => x.id===F.edit ? rec : x); } else L.push(rec);
+    sset("hk26-exp", JSON.stringify(L)); costSt.f = {day:F.day,tag:F.tag,amt:"",cur:F.cur,note:"",edit:null};
+  }
+  render(true);
+});
+document.addEventListener("input", e => {
+  if(e.target.id==="c_amt"){ costSt.f.amt = e.target.value; const R = rates(), p = $("#c_prev"); if(p) p.textContent = costSt.f.cur==="JPY" ? "約 NT$ " + fmt((parseFloat(e.target.value)||0)*R.JPY) + "（1 日圓 = " + R.JPY + " 台幣）" : ""; }
+  else if(e.target.id==="c_note") costSt.f.note = e.target.value;
+  else if(e.target.id==="bk") costSt.bk = e.target.value;
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.dataset && t.dataset.fpaid){ const fs = fixedState(); fs[t.dataset.fpaid] = Object.assign(fs[t.dataset.fpaid]||{}, {paid:t.checked}); sset("hk26-fixed", JSON.stringify(fs)); render(true); }
+  else if(t.id==="r_jpy" || t.id==="r_usd"){ const j = parseFloat($("#r_jpy").value), u = parseFloat($("#r_usd").value); const r = {}; if(j>0) r.JPY = j; if(u>0) r.USD = u; sset("hk26-rate", JSON.stringify(r)); render(true); }
+});
+(function init(){
+  const t = todayId(); const sd = sget("hk26-day"); const stt = sget("hk26-tab");
+  st.day = t || (sd && (sd==="ov" || DAYS.some(d => d.id===sd)) ? sd : "ov");
+  if(stt && VIEWS[stt]) st.tab = stt;
+  if(t){ st.tab = "trip"; const d = DAYS.find(x => x.id===t); if(d && d.stayId) st.stop = d.stayId; }
+  render(true);
+})();
+</script>
+
+<script>if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){ window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }</script>
+</body></html>
