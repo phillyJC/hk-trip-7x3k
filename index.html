@@ -406,6 +406,7 @@ const SAFE = [
 const LINKS = [["tenki.jp 長期預報","https://tenki.jp/long/"],["氣象廳 兩週氣溫預報","https://www.data.jma.go.jp/cpd/twoweek/"],["氣象廳 札幌管區氣象台","https://www.jma-net.go.jp/sapporo/"],["Windy","https://www.windy.com/"],["北海道開發局 道路資訊","http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm"]];
 
 /* ---------- 狀態與工具 ---------- */
+const APP_VER = "2026-10-19 23:10";
 const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["talk","會話","話"],["todo","待辦","✓"],["sos","緊急","!"]];
 const $ = s => document.querySelector(s);
 const st = {tab:"trip", day:"ov", stop:"asa"};
@@ -541,13 +542,15 @@ function viewTodo(){
   let saved = {}; try { saved = JSON.parse(sget("hk26-checks")||"{}"); } catch(e){}
   const isOn = t => saved[t[0]]===undefined ? t[2]===1 : !!saved[t[0]];
   const done = TODO.filter(isOn).length;
-  let h = '<div class="card"><div class="hot"><h2>出發前待辦</h2><span class="tag ' + (done===TODO.length?'free':'') + '" id="prog">' + done + ' / ' + TODO.length + '</span></div><div style="margin-top:6px">';
-  TODO.forEach(t => { h += '<div class="check"><input type="checkbox" id="' + t[0] + '" data-chk="' + t[0] + '"' + ((saved[t[0]]===undefined ? t[2]===1 : saved[t[0]])?' checked':'') + '><label for="' + t[0] + '">' + esc(t[1]) + '</label></div>'; });
+  let h = myTodoCard();
+  h += '<div class="card"><div class="hot"><h2>出發前待辦</h2><span class="tag ' + (done===TODO.length?'free':'') + '" id="prog">' + done + ' / ' + TODO.length + '</span></div><div style="margin-top:6px">';
+  TODO.map((t,i) => ({t:t, i:i, on:isOn(t)})).sort((x,y) => (x.on - y.on) || (x.i - y.i)).forEach(o => { const t = o.t; h += '<div class="check"><input type="checkbox" id="' + t[0] + '" data-chk="' + t[0] + '"' + (o.on?' checked':'') + '><label for="' + t[0] + '">' + esc(t[1]) + '</label></div>'; });
   h += '</div><p class="small" style="margin-top:6px">勾選狀態只存在這支手機的瀏覽器。</p></div>';
   h += '<div class="card"><h2>開車安全</h2><ul class="tl" style="margin-top:6px">';
   SAFE.forEach(s => { h += '<li><div class="t none">·</div><div class="x">' + s + '</div></li>'; });
   h += '</ul></div>';
   h += '<div class="card"><h2>要打的電話</h2><div class="kv" style="grid-template-columns:120px 1fr"><div class="k">函館山纜車</div><div>0138-23-3105</div><div class="k">小樽啤酒倉庫</div><div>0134-21-2323</div><div class="k">有珠山纜車</div><div>0142-75-2401</div><div class="k">洞爺湖汽船</div><div>0142-75-2137</div><div class="k">波羅比奈食堂</div><div>0123-25-2041</div><div class="k">旭川拉麵村</div><div>0166-48-2153</div><div class="k">札幌啤酒博物館</div><div>011-748-1876</div></div><p class="small" style="margin-top:6px">從台灣撥打請加 +81，並省略區碼開頭的 0。這些是店家與設施的市話。</p></div>';
+  h += '<div class="card"><h2>版本與更新</h2><p class="small">目前版本：<b>' + APP_VER + '</b>。網站有更新但畫面沒變時，按下面的按鈕。不會清掉你的記帳和設定。</p><button class="chip on" data-forceupd="1" style="width:100%;margin-top:6px">強制更新到最新版</button><p class="small" id="updmsg" style="margin-top:6px"></p></div>';
   return h;
 }
 
@@ -565,7 +568,9 @@ const FIXED = [
 const TAGS = [["gas","⛽","加油"],["bf","🍳","早餐"],["lu","🍱","午餐"],["di","🍣","晚餐"],["snk","🍦","點心飲料"],["tkt","🎟️","門票"],["rope","🚡","纜車"],["onsen","♨️","泡湯"],["toll","🛣️","高速費"],["park","🅿️","停車"],["gift","🎁","伴手禮"],["tran","🚃","交通"],["tax","🏨","住宿稅"],["oth","💰","其他"]];
 const jget = (k,d) => { try { const v = JSON.parse(sget(k)); return v==null?d:v; } catch(e){ return d; } };
 const fmt = n => Math.round(n).toLocaleString("en-US");
-const costSt = {f:{day:null,tag:"di",amt:"",cur:"JPY",note:"",edit:null}};
+const PAYS = [["card","💳","信用卡"],["cash","💵","現金"]];
+const payOf = id => PAYS.find(p => p[0]===id);
+const costSt = {f:{day:null,tag:"di",amt:"",cur:"JPY",note:"",pay:"card",edit:null}};
 function fixedState(){ return jget("hk26-fixed",{}); }
 function fixedTwd(f,R,fs){ const o = fs[f[0]]||{}; const a = o.amt!==undefined ? o.amt : f[4]; return a*R[f[3]]; }
 function fixedPaid(f,fs){ const o = fs[f[0]]||{}; return o.paid!==undefined ? !!o.paid : f[5]===1; }
@@ -588,6 +593,8 @@ function viewCost(){
   DAYS.forEach(d => { h += '<button class="chip' + (F.day===d.id?' on':'') + '" data-cday="' + d.id + '"><b>' + d.date + '</b><span>' + d.w + '</span></button>'; });
   h += '</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">';
   TAGS.forEach(t => { h += '<button class="chip' + (F.tag===t[0]?' on':'') + '" data-ctag="' + t[0] + '" style="min-width:0;padding:6px 2px"><span style="font-size:22px;display:block">' + t[1] + '</span><span style="font-size:12px">' + t[2] + '</span></button>'; });
+  h += '</div><div style="display:flex;gap:8px;margin-top:10px">';
+  PAYS.forEach(p => { h += '<button class="chip' + (F.pay===p[0]?' on':'') + '" data-cpay="' + p[0] + '" style="flex:1;min-width:0"><b>' + p[1] + '</b><span>' + p[2] + '</span></button>'; });
   h += '</div><div style="display:flex;gap:8px;margin-top:10px"><input id="c_amt" class="inp" inputmode="decimal" placeholder="金額" value="' + esc(F.amt) + '" style="flex:1;min-width:0">' +
     '<button class="chip' + (F.cur==="JPY"?' on':'') + '" data-ccur="JPY" style="min-width:56px">¥ 日圓</button><button class="chip' + (F.cur==="TWD"?' on':'') + '" data-ccur="TWD" style="min-width:56px">NT$ 台幣</button></div>' +
     '<input id="c_note" class="inp" placeholder="備註（例如：Seicomart、千歲 IC）" value="' + esc(F.note) + '" style="margin-top:8px;width:100%">';
@@ -602,7 +609,7 @@ function viewCost(){
     const sum = L.reduce((s,e) => s+e.twd, 0);
     h += '<div class="hot" style="margin-top:10px"><h3>' + d.date + '（' + d.w + '）' + d.short + '</h3><span class="tag">NT$ ' + fmt(sum) + '</span></div>';
     L.forEach(e => { const t = tagOf(e.tag);
-      h += '<div style="display:grid;grid-template-columns:34px 1fr auto auto;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="font-size:22px">' + t[1] + '</span><button class="lnk" data-cedit="' + e.id + '"><b>' + t[2] + '</b>' + (e.note?' · '+esc(e.note):'') + '<br><span class="small">' + (e.cur==="JPY" ? '¥' + fmt(e.amt) + ' → ' : '') + 'NT$ ' + fmt(e.twd) + '</span></button><b>' + fmt(e.twd) + '</b>' + (costSt.ask===e.id ? '<span style="display:flex;gap:6px"><button class="chip" data-cdel2="' + e.id + '" style="color:var(--warn);min-width:0;padding:8px 10px">確定刪除</button><button class="chip" data-cdel0="1" style="min-width:0;padding:8px 10px">取消</button></span>' : '<button class="lnk" data-cdel="' + e.id + '" aria-label="刪除" style="color:var(--warn);font-size:20px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">✕</button>') + '</div>'; });
+      h += '<div style="display:grid;grid-template-columns:34px 1fr auto auto;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0"><span style="font-size:22px">' + t[1] + '</span><button class="lnk" data-cedit="' + e.id + '"><b>' + t[2] + '</b>' + (e.note?' · '+esc(e.note):'') + '<br><span class="small">' + (payOf(e.pay) ? payOf(e.pay)[1] + payOf(e.pay)[2] + ' · ' : '') + (e.cur==="JPY" ? '¥' + fmt(e.amt) + ' → ' : '') + 'NT$ ' + fmt(e.twd) + '</span></button><b>' + fmt(e.twd) + '</b>' + (costSt.ask===e.id ? '<span style="display:flex;gap:6px"><button class="chip" data-cdel2="' + e.id + '" style="color:var(--warn);min-width:0;padding:8px 10px">確定刪除</button><button class="chip" data-cdel0="1" style="min-width:0;padding:8px 10px">取消</button></span>' : '<button class="lnk" data-cdel="' + e.id + '" aria-label="刪除" style="color:var(--warn);font-size:20px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">✕</button>') + '</div>'; });
   });
   if(!any) h += '<p class="small">還沒有記錄。點上面的圖案與金額後按新增，點一筆可以修改。</p>';
   h += '</div>';
@@ -610,6 +617,13 @@ function viewCost(){
   const by = {}; ex.forEach(e => { by[e.tag] = (by[e.tag]||0) + e.twd; });
   const rows = TAGS.filter(t => by[t[0]]);
   if(rows.length){ h += '<div class="card"><h2>分類統計</h2><div class="kv" style="grid-template-columns:110px 1fr">'; rows.forEach(t => { h += '<div class="k">' + t[1] + ' ' + t[2] + '</div><div>NT$ ' + fmt(by[t[0]]) + '</div>'; }); h += '</div></div>'; }
+  /* 付款方式統計 */
+  if(ex.length){ const pp = {card:0, cash:0, none:0}, pn = {card:0, cash:0, none:0};
+    ex.forEach(e => { const k = payOf(e.pay) ? e.pay : "none"; pp[k] += e.twd; pn[k]++; });
+    h += '<div class="card"><h2>付款方式統計</h2><div class="kv" style="grid-template-columns:110px 1fr">';
+    PAYS.forEach(p => { h += '<div class="k">' + p[1] + ' ' + p[2] + '</div><div>NT$ ' + fmt(pp[p[0]]) + '（' + pn[p[0]] + ' 筆）</div>'; });
+    if(pn.none) h += '<div class="k">未標記</div><div>NT$ ' + fmt(pp.none) + '（' + pn.none + ' 筆）</div>';
+    h += '</div><p class="small" style="margin-top:6px">點一筆花費可修改付款方式。</p></div>'; }
   /* 已訂明細 */
   h += '<div class="card"><h2>已訂明細（台幣）</h2>';
   const line = f => { const v = fixedTwd(f,R,T.fs), p = fixedPaid(f,T.fs);
@@ -1254,6 +1268,56 @@ document.addEventListener("click", e => {
   render(true);
 });
 
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-forceupd]"); if(!b) return; const m = $("#updmsg"); if(m) m.textContent = "更新中…";
+  try{
+    if(navigator.serviceWorker){ const rs = await navigator.serviceWorker.getRegistrations(); for(const r of rs) await r.unregister(); }
+    if(window.caches){ const ks = await caches.keys(); for(const k of ks) await caches.delete(k); }
+  }catch(x){}
+  location.href = location.pathname + "?u=" + Date.now();
+});
+
+/* ---------- 我的待辦（可自己輸入、用顏色分類） ---------- */
+const TD_COLORS = [["red","🔴","緊急","var(--warn)"],["orange","🟠","重要","var(--lodge)"],["blue","🔵","一般","var(--accent)"],["green","🟢","有空再做","var(--ok)"]];
+const tdSt = {color:"blue", ask:null, draft:""};
+const tdColor = id => TD_COLORS.find(c => c[0]===id) || TD_COLORS[2];
+function myTodos(){ return jget("hk26-mytodos", []); }
+function saveTodos(L){ sset("hk26-mytodos", JSON.stringify(L)); }
+function myTodoCard(){
+  const L = myTodos().map((x,i) => Object.assign({i:i}, x)), rank = id => TD_COLORS.findIndex(c => c[0]===id);
+  L.sort((a,b) => (a.done - b.done) || (a.done ? (b.ts - a.ts) : (rank(a.color) - rank(b.color)) || (a.ts - b.ts)));
+  const left = L.filter(x => !x.done).length;
+  let h = '<div class="card"><div class="hot"><h2>我的待辦</h2><span class="tag ' + (L.length && !left ? 'free' : '') + '">' + (L.length ? left + ' 項未完成' : '還沒有') + '</span></div>';
+  h += '<div style="display:flex;gap:6px;margin-top:8px"><input id="td_in" class="inp" placeholder="輸入待辦，例如：買行動電源" value="' + esc(tdSt.draft) + '" style="flex:1;min-width:0"><button class="chip on" data-tdadd="1" style="min-width:56px">新增</button></div>';
+  h += '<div class="chips" style="margin:8px 0 2px">';
+  TD_COLORS.forEach(c => { h += '<button class="chip' + (tdSt.color===c[0]?' on':'') + '" data-tdcolor="' + c[0] + '" style="min-width:0"><b>' + c[1] + '</b><span>' + c[2] + '</span></button>'; });
+  h += '</div><p class="small">先選顏色再按新增。紅色最優先，完成的會自動移到最下面。</p>';
+  L.forEach(x => { const c = tdColor(x.color);
+    h += '<div class="check nostrike" style="border-left:5px solid ' + c[3] + ';padding-left:8px;margin:6px 0;align-items:center;' + (x.done ? 'opacity:.55' : '') + '"><input type="checkbox" id="md_' + x.id + '" data-tdchk="' + x.id + '"' + (x.done ? ' checked' : '') + '><label for="md_' + x.id + '" style="flex:1;' + (x.done ? 'text-decoration:line-through' : '') + '"><span style="color:' + c[3] + ';font-weight:700">' + c[1] + ' ' + c[2] + '</span><br>' + esc(x.text) + '</label>' +
+      (tdSt.ask===x.id ? '<span style="display:flex;gap:6px"><button class="chip" data-tddel2="' + x.id + '" style="color:var(--warn);min-width:0;padding:8px 10px">確定刪除</button><button class="chip" data-tddel0="1" style="min-width:0;padding:8px 10px">取消</button></span>' : '<button class="lnk" data-tddel="' + x.id + '" aria-label="刪除" style="color:var(--warn);font-size:20px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">✕</button>') + '</div>'; });
+  return h + '</div>';
+}
+function addTodo(){
+  const t = (tdSt.draft || "").trim(); if(!t){ const i = $("#td_in"); if(i) i.focus(); return; }
+  const L = myTodos(); L.push({id:"m" + Date.now(), text:t, color:tdSt.color, done:false, ts:Date.now()}); saveTodos(L); tdSt.draft = ""; render(true);
+  const i = $("#td_in"); if(i) i.focus();
+}
+document.addEventListener("input", e => { if(e.target.id==="td_in") tdSt.draft = e.target.value; });
+document.addEventListener("keydown", e => { if(e.target.id==="td_in" && e.key==="Enter"){ e.preventDefault(); tdSt.draft = e.target.value; addTodo(); } });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-tdadd],[data-tdcolor],[data-tddel],[data-tddel0],[data-tddel2]"); if(!b) return; const d = b.dataset;
+  const inp = $("#td_in"); if(inp) tdSt.draft = inp.value;
+  if(d.tdadd){ addTodo(); return; }
+  if(d.tdcolor){ tdSt.color = d.tdcolor; } else if(d.tddel){ tdSt.ask = d.tddel; } else if(d.tddel0){ tdSt.ask = null; }
+  else if(d.tddel2){ saveTodos(myTodos().filter(x => x.id!==d.tddel2)); tdSt.ask = null; }
+  render(true);
+});
+document.addEventListener("change", e => {
+  const c = e.target.closest("[data-tdchk]"); if(!c) return; const inp = $("#td_in"); if(inp) tdSt.draft = inp.value;
+  saveTodos(myTodos().map(x => x.id===c.dataset.tdchk ? Object.assign({}, x, {done:c.checked, ts:Date.now()}) : x)); render(true);
+});
+
 /* ---------- 繪製與事件 ---------- */
 const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo, talk:viewTalk, sos:viewSos};
 function render(keepScroll){
@@ -1276,7 +1340,7 @@ document.addEventListener("change", e => {
   const c = e.target.closest("[data-chk]"); if(!c) return;
   let saved = {}; try { saved = JSON.parse(sget("hk26-checks")||"{}"); } catch(x){}
   saved[c.dataset.chk] = c.checked; sset("hk26-checks", JSON.stringify(saved));
-  const n = TODO.filter(t => saved[t[0]]===undefined ? t[2]===1 : !!saved[t[0]]).length; const p = $("#prog"); if(p){ p.textContent = n + " / " + TODO.length; p.className = "tag" + (n===TODO.length?" free":""); }
+  render(true);
 });
 
 document.addEventListener("click", e => {
@@ -1297,19 +1361,19 @@ document.addEventListener("click", e => {
 });
 function cnow(){ const F = costSt.f; const a = $("#c_amt"), n = $("#c_note"); if(a) F.amt = a.value; if(n) F.note = n.value; }
 document.addEventListener("click", e => {
-  const b = e.target.closest("[data-cday],[data-ctag],[data-ccur],[data-cadd],[data-ccancel],[data-cedit],[data-cdel],[data-cdel0],[data-cdel2]"); if(!b) return;
+  const b = e.target.closest("[data-cday],[data-ctag],[data-cpay],[data-ccur],[data-cadd],[data-ccancel],[data-cedit],[data-cdel],[data-cdel0],[data-cdel2]"); if(!b) return;
   const F = costSt.f; cnow(); costSt.bk = undefined; const d = b.dataset;
-  if(d.cday) F.day = d.cday; else if(d.ctag) F.tag = d.ctag; else if(d.ccur) F.cur = d.ccur;
-  else if(d.ccancel) costSt.f = {day:F.day,tag:"di",amt:"",cur:"JPY",note:"",edit:null};
+  if(d.cday) F.day = d.cday; else if(d.ctag) F.tag = d.ctag; else if(d.cpay) F.pay = d.cpay; else if(d.ccur) F.cur = d.ccur;
+  else if(d.ccancel) costSt.f = {day:F.day,tag:"di",amt:"",cur:"JPY",note:"",pay:F.pay,edit:null};
   else if(d.cdel){ costSt.ask = d.cdel; }
   else if(d.cdel0){ costSt.ask = null; }
   else if(d.cdel2){ sset("hk26-exp", JSON.stringify(jget("hk26-exp",[]).filter(x => x.id!==d.cdel2))); costSt.ask = null; }
-  else if(d.cedit){ const x = jget("hk26-exp",[]).find(y => y.id===d.cedit); if(x){ costSt.f = {day:x.day,tag:x.tag,amt:String(x.amt),cur:x.cur,note:x.note||"",edit:x.id}; } }
+  else if(d.cedit){ const x = jget("hk26-exp",[]).find(y => y.id===d.cedit); if(x){ costSt.f = {day:x.day,tag:x.tag,amt:String(x.amt),cur:x.cur,note:x.note||"",pay:x.pay||"card",edit:x.id}; } }
   else if(d.cadd){
     const amt = parseFloat(F.amt); if(!(amt>0)){ const a = $("#c_amt"); if(a) a.focus(); return; }
-    const R = rates(); const rec = {id:F.edit || ("e"+Date.now()), day:F.day, tag:F.tag, amt:amt, cur:F.cur, note:F.note.trim(), twd:amt*R[F.cur]};
+    const R = rates(); const rec = {id:F.edit || ("e"+Date.now()), day:F.day, tag:F.tag, amt:amt, cur:F.cur, note:F.note.trim(), pay:F.pay, twd:amt*R[F.cur]};
     let L = jget("hk26-exp",[]); if(F.edit){ L = L.map(x => x.id===F.edit ? rec : x); } else L.push(rec);
-    sset("hk26-exp", JSON.stringify(L)); costSt.f = {day:F.day,tag:F.tag,amt:"",cur:F.cur,note:"",edit:null};
+    sset("hk26-exp", JSON.stringify(L)); costSt.f = {day:F.day,tag:F.tag,amt:"",cur:F.cur,note:"",pay:F.pay,edit:null};
   }
   render(true);
 });
