@@ -406,7 +406,7 @@ const SAFE = [
 const LINKS = [["tenki.jp 長期預報","https://tenki.jp/long/"],["氣象廳 兩週氣溫預報","https://www.data.jma.go.jp/cpd/twoweek/"],["氣象廳 札幌管區氣象台","https://www.jma-net.go.jp/sapporo/"],["Windy","https://www.windy.com/"],["北海道開發局 道路資訊","http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm"]];
 
 /* ---------- 狀態與工具 ---------- */
-const APP_VER = "2026-10-19 23:55";
+const APP_VER = "2026-10-20 00:10";
 const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["talk","會話","話"],["todo","待辦","✓"],["sos","緊急","!"]];
 const $ = s => document.querySelector(s);
 const st = {tab:"trip", day:"ov", stop:"asa"};
@@ -509,7 +509,7 @@ function viewStay(){
 
 
 /* ---------- 美食：現在有開的店（即時） ---------- */
-const eatUi = {only:true};
+const eatUi = {only:true, more:false};
 function jstNow(){ const d = new Date(Date.now() + 9*3600*1000); return {dow:d.getUTCDay(), min:d.getUTCHours()*60 + d.getUTCMinutes()}; }
 /* 簡易 opening_hours 判斷：回傳 true / false / null(看不懂) */
 function osmOpen(oh){
@@ -552,7 +552,7 @@ async function loadEat(){
       try{ d = await Promise.any(["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"].map(one)); }
       catch(e){ last = (e && e.errors && e.errors[0] && e.errors[0].message) || "連線逾時"; }
       if(!d || !Array.isArray(d.elements)) throw new Error(last || "格式不符");
-      list = d.elements.map(e => { const t = e.tags||{}, la = e.lat!=null?e.lat:(e.center&&e.center.lat), lo = e.lon!=null?e.lon:(e.center&&e.center.lon); if(la==null) return null; const nm = t.name||t["name:ja"]; return {src:"o", name:nm, type:({restaurant:"餐廳",cafe:"咖啡",fast_food:"速食",ramen:"拉麵"})[t.amenity]||"", cuisine:t.cuisine||"", open:osmOpen(t.opening_hours), hours:t.opening_hours||"", web:t.website||t["contact:website"]||"", tel:t.phone||t["contact:phone"]||"", resv:t.reservation, map:mapsUrl(nm), m:hav(L.lat,L.lon,la,lo)}; }).filter(Boolean).sort((a,b) => ((b.open===true)-(a.open===true)) || (a.m-b.m));
+      list = d.elements.map(e => { const t = e.tags||{}, la = e.lat!=null?e.lat:(e.center&&e.center.lat), lo = e.lon!=null?e.lon:(e.center&&e.center.lon); if(la==null) return null; const nm = t.name||t["name:ja"]; return {src:"o", name:nm, type:({restaurant:"餐廳",cafe:"咖啡",fast_food:"速食",ramen:"拉麵"})[t.amenity]||"", cuisine:t.cuisine||"", open:osmOpen(t.opening_hours), hours:t.opening_hours||"", web:t.website||t["contact:website"]||"", tel:t.phone||t["contact:phone"]||"", resv:t.reservation, map:mapsUrl(nm), m:hav(L.lat,L.lon,la,lo)}; }).filter(Boolean).map(p => { p.score = (p.open===true?100:0) + (p.tel?10:0) + (p.web?10:0) + (p.resv?5:0) + (p.cuisine?5:0) + (p.type==='餐廳'?3:0) - p.m/100; return p; }).sort((a,b) => b.score-a.score);
     }
     live.eat[L.id] = {t:Date.now(), list:list, src:key?"g":"o"};
   }catch(e){ live.eatErr = "無法取得店家資料（" + (e && e.message ? e.message : "連線失敗") + "）"; }
@@ -579,8 +579,10 @@ function eatCard(){
   if(c){
     let L2 = c.list.filter(p => !eatUi.only || p.open!==false);
     if(!L2.length) h += '<div class="card"><p>目前沒有找到營業中的店，可以關掉「只看營業中」或換地點。</p></div>';
-    L2.slice(0,20).forEach(p => { h += eatRow(p); });
-    if(L2.length>20) h += '<p class="small">只列出前 20 家。</p>';
+    const lim = eatUi.more ? 20 : 3;
+    L2.slice(0,lim).forEach((p,i) => { h += (i<3 ? '<p class="small" style="margin:8px 0 -4px"><b>推薦 ' + (i+1) + '</b></p>' : '') + eatRow(p); });
+    if(L2.length>3) h += '<button class="chip" data-eatmore="1" style="width:100%;margin-top:8px">' + (eatUi.more ? '只看前 3 家' : '再看更多（共 ' + Math.min(L2.length,20) + ' 家）') + '</button>';
+    h += '<p class="small" style="margin-top:6px">' + (c.src==="g" ? '依 Google 星級排序。' : '免費資料沒有星級，依「營業中、資料完整度、距離」挑選，不代表好吃程度。想看星級請按地圖。') + '</p>';
   }
   return h;
 }
@@ -887,12 +889,13 @@ function askGps(att){
     () => { live.gpsErr = "無法取得定位（可能被拒絕或此頁面不允許），請改選城市。"; render(true); }, {enableHighAccuracy:false, timeout:10000, maximumAge:60000});
 }
 document.addEventListener("click", e => {
-  const b = e.target.closest("[data-place],[data-gps],[data-wxref],[data-pksearch],[data-eatref],[data-eatkey],[data-eatonly]"); if(!b) return; const d = b.dataset;
+  const b = e.target.closest("[data-place],[data-gps],[data-wxref],[data-pksearch],[data-eatref],[data-eatkey],[data-eatonly],[data-eatmore]"); if(!b) return; const d = b.dataset;
   if(d.place){ live.place = d.place; live.gpsErr = ""; sset("hk26-place", d.place); render(true); if(st.tab==="wx") loadWx(false); if(st.tab==="food") loadEat(); }
   else if(d.gps){ askGps(d.gps); }
   else if(d.wxref){ loadWx(true); }
   else if(d.pksearch){ loadPk(); }
   else if(d.eatref){ loadEat(); }
+  else if(d.eatmore){ eatUi.more = !eatUi.more; render(true); }
   else if(d.eatonly){ eatUi.only = !eatUi.only; render(true); }
   else if(d.eatkey){ const i = $("#eat_key"); if(d.eatkey==="save"){ sset("hk26-gkey", (i ? i.value : "").trim()); loadEat(); } else { sset("hk26-gkey", ""); live.eat = {}; render(true); } }
 });
