@@ -96,12 +96,20 @@ th{font-size:12px;color:var(--sub);font-weight:500}
 .check label{min-width:0;overflow-wrap:anywhere}
 .check input:checked+label{color:var(--sub);text-decoration:line-through}
 .check.nostrike input:checked+label{color:var(--ink);text-decoration:none}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(7,1fr);
+nav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(8,1fr);
   padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
-nav button{all:unset;text-align:center;font-size:12.5px;font-weight:500;color:var(--sub);padding:10px 0;border-radius:8px;cursor:pointer;line-height:1.3}
+nav button{all:unset;text-align:center;font-size:12px;font-weight:500;color:var(--sub);padding:10px 0;border-radius:8px;cursor:pointer;line-height:1.3}
 nav button.on{color:var(--accent);background:var(--chip)}
 button.lnk{all:unset;cursor:pointer;text-align:left;font-size:15px}
 .inp{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.sosb{display:grid;grid-template-columns:1fr auto;grid-template-areas:'n c' 'l l';gap:4px 10px;align-items:center;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card)}
+.sosb .sn{grid-area:n;font-size:22px;font-weight:700;color:var(--warn);min-width:0}
+.sosb .sl{grid-area:l}
+.sosb .sc{grid-area:c;background:var(--warn);color:#fff;border-radius:8px;padding:8px 14px;font-weight:700}
+.sosb.big{padding:14px 12px;border-color:var(--warn)}.sosb.big .sn{font-size:36px}
+nav button[data-tab=sos]{color:var(--warn);font-weight:700}
+nav button[data-tab=sos].on{background:var(--warn);color:#fff}
+.inp{font:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--lodge);outline-offset:2px}
 @media (prefers-reduced-motion:no-preference){main>*{animation:rise .25s ease both}}
 @keyframes rise{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -389,7 +397,7 @@ const SAFE = [
 const LINKS = [["tenki.jp 長期預報","https://tenki.jp/long/"],["氣象廳 兩週氣溫預報","https://www.data.jma.go.jp/cpd/twoweek/"],["氣象廳 札幌管區氣象台","https://www.jma-net.go.jp/sapporo/"],["Windy","https://www.windy.com/"],["北海道開發局 道路資訊","http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm"]];
 
 /* ---------- 狀態與工具 ---------- */
-const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["todo","待辦","✓"]];
+const TABS = [["trip","行程","📅"],["stay","住宿","♨"],["food","美食","🍜"],["wx","天氣","☁"],["park","停車","P"],["cost","費用","💴"],["todo","待辦","✓"],["sos","緊急","!"]];
 const $ = s => document.querySelector(s);
 const st = {tab:"trip", day:"ov", stop:"asa"};
 const sget = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
@@ -517,9 +525,6 @@ function viewWx(){
   [["1 個月預報（10/15）","北日本氣溫比平年高的機率 60%；日本海側降水「平年並」或「多」合計 80%。"],["3 個月預報（9/18）","北海道 11 月氣溫偏高 50%、平年 30%、偏低 20%。下一次更新預定 10/20。"],["初雪","平年初雪日大多早於或接近出發日，山區到時可能已有雪；今年偏暖，平地初雪可能較晚。"]].forEach(r => { h += '<li><div class="t none">·</div><div class="x"><b>' + r[0] + '</b><br>' + r[1] + '</div></li>'; });
   h += '</ul></div>';
   h += '<div class="card"><h2>穿著</h2><p style="margin-top:6px">洋蔥式穿搭：發熱內衣、刷毛或薄羽絨中層、防風防水外層，加手套、毛帽，鞋底要防滑。旭川、美瑛早晚在 0℃ 附近，比札幌、函館更冷。</p></div>';
-  h += '<div class="card"><h2>什麼時候看實際預報</h2><p style="margin-top:6px">約 10/26 起，兩週氣溫預報和 10 日預報會涵蓋出發日；11/1 之後的逐日預報才比較能參考。出發前一天再看一次道路結冰與降雪。</p><div class="row" style="margin-top:8px;flex-direction:column;align-items:flex-start">';
-  LINKS.forEach(l => { h += '<a href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + '</a>'; });
-  h += '</div><p class="small" style="margin-top:6px">氣象廳兩週預報與道路資訊的網址我沒有實際開啟確認。</p></div>';
   return h;
 }
 
@@ -650,13 +655,42 @@ async function loadWx(force){
   if(!force && live.wxFail && Date.now()-live.wxFail < 60000) return;
   if(live.wxBusy) return; live.wxBusy = true; live.wxErr = ""; if(st.tab==="wx") render(true);
   try{
-    const u = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon + "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,snowfall,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum,precipitation_sum,sunrise,sunset&timezone=Asia%2FTokyo&forecast_days=3&wind_speed_unit=kmh";
+    const u = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon + "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,snowfall,is_day&hourly=temperature_2m,relative_humidity_2m,precipitation,snowfall,soil_temperature_0cm&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum,precipitation_sum,sunrise,sunset&timezone=Asia%2FTokyo&forecast_days=3&wind_speed_unit=kmh";
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 12000);
     const r = await fetch(u, {signal:ctl.signal}); clearTimeout(to); if(!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json(); if(!d.current || !d.daily) throw new Error("格式不符");
     live.wx[key] = {t:Date.now(), d:d}; sset("hk26-wx-" + key, JSON.stringify(live.wx[key])); live.wxFail = 0;
   }catch(e){ live.wxFail = Date.now(); live.wxErr = "無法取得即時預報（" + (e && e.message ? e.message : "連線失敗") + "）"; }
   live.wxBusy = false; if(st.tab==="wx") render(true);
+}
+function iceHours(d){
+  const H = d && d.hourly; if(!H || !H.time || !H.soil_temperature_0cm) return null;
+  const now = (d.current.time || "").slice(0,13) + ":00"; let i0 = H.time.findIndex(t => t >= now); if(i0<0) i0 = 0;
+  const out = [];
+  for(let k=i0; k<Math.min(i0+24, H.time.length); k++){
+    const ts = H.soil_temperature_0cm[k], ta = H.temperature_2m[k], rh = H.relative_humidity_2m[k], pr = H.precipitation[k]||0, sn = H.snowfall[k]||0;
+    const prev = (H.precipitation[k-1]||0) + (H.precipitation[k-2]||0) + (H.snowfall[k-1]||0) + (H.snowfall[k-2]||0);
+    let lv = 0, why = "";
+    if(sn>0 && ta<=2){ lv = 2; why = "降雪"; }
+    else if(ts<=0.5 && (pr>0 || prev>0)){ lv = 2; why = "路面 0℃ 以下且潮濕或剛下過雨"; }
+    else if(ts<=0.5 && rh>=85){ lv = 2; why = "路面 0℃ 以下且濕度高，可能結霜"; }
+    else if(ts<=1.5 && (rh>=75 || pr>0)){ lv = 1; why = "路面接近 0℃"; }
+    else if(ta<=2 && rh>=85){ lv = 1; why = "氣溫低且濕度高"; }
+    out.push({t:H.time[k].slice(11,13), lv:lv, ts:ts, ta:ta, why:why});
+  }
+  return out;
+}
+function iceCard(d){
+  const L = iceHours(d); if(!L || !L.length) return '';
+  const lab = ["低","中","高"], col = ["var(--ok)","var(--lodge)","var(--warn)"], sym = ["✓","⚠","❄"];
+  const worst = Math.max.apply(null, L.map(x => x.lv));
+  const hi = L.filter(x => x.lv===2).map(x => x.t + ":00"), mid = L.filter(x => x.lv===1).map(x => x.t + ":00");
+  let h = '<div class="card"><div class="hot"><h2>路面結冰預測（未來 24 小時）</h2><span class="tag ' + (worst===0?'free':'') + '">最高風險：' + lab[worst] + '</span></div>';
+  h += '<div style="overflow-x:auto;margin:8px -2px 0;padding:2px"><div style="display:flex;gap:4px;min-width:max-content">';
+  L.forEach(x => { h += '<div style="width:34px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:4px 0" title="' + esc(x.why) + '"><div class="small">' + x.t + '</div><div style="font-size:16px;color:' + col[x.lv] + ';font-weight:700;line-height:1.4">' + sym[x.lv] + '</div><div style="font-size:12px;line-height:1.2">' + Math.round(x.ts) + '°</div></div>'; });
+  h += '</div></div><p class="small" style="margin-top:6px">✓ 低　⚠ 中（路面接近 0℃）　❄ 高（降雪，或路面 0℃ 以下且潮濕）。每格下方是預測的路面溫度。</p>';
+  h += '<p style="margin-top:6px">' + (hi.length ? '<b>高風險時段：</b>' + hi.join("、") + '。' : '') + (mid.length ? '<b>中風險時段：</b>' + mid.join("、") + '。' : '') + (!hi.length && !mid.length ? '未來 24 小時預測沒有明顯結冰條件，山路與日落後仍要小心。' : '') + '</p>';
+  return h + '<p class="small" style="margin-top:6px"><b>這是用氣象模型的路面溫度、濕度、降雨與降雪估算，不是實際路面感測。</b>橋面、隧道口、山頂、背陰處會比預測更容易結冰，以實際路況為準。</p></div>';
 }
 function roadRisk(d){
   if(!d) return null; const D = d.daily, C = d.current; let lv = 0, why = [];
@@ -668,12 +702,7 @@ function roadRisk(d){
   return {lv:lv, why:why};
 }
 function wxFallback(L){
-  const q = encodeURIComponent(L.name + " 天氣");
-  return '<p style="margin-top:4px"><b>' + esc(L.name) + '</b> 的即時預報暫時讀不到（可能沒有網路）。請按下面的連結：</p><div class="links" style="margin-top:8px;gap:10px 16px">' +
-  '<a href="https://www.google.com/search?q=' + q + '" target="_blank" rel="noopener"><b>Google 天氣</b>（圖示、逐時、7 日）</a>' +
-  '<a href="https://www.windy.com/' + L.lat + '/' + L.lon + '?' + L.lat + ',' + L.lon + ',9" target="_blank" rel="noopener"><b>Windy</b>（雨雲、風、降雪）</a>' +
-  '<a href="https://www.jma.go.jp/bosai/forecast/" target="_blank" rel="noopener"><b>氣象廳</b>（官方預報）</a>' +
-  '<a href="https://tenki.jp/" target="_blank" rel="noopener"><b>tenki.jp</b></a></div><p class="small" style="margin-top:8px">下面有各地 11 月平均氣溫、日出日落和穿著建議，不用網路也能看。</p>';
+  return '<p style="margin-top:4px"><b>' + esc(L.name) + '</b> 的即時預報暫時讀不到，可能是沒有網路。</p><button class="chip on" data-wxref="1">重新載入</button><p class="small" style="margin-top:8px">下面有各地 11 月平均氣溫、日出日落和穿著建議，不用網路也能看。</p>';
 }
 function wxCard(){
   const L = curLoc(), key = L.id==="gps"?"gps":L.id, c = live.wx[key] || jget("hk26-wx-" + key, null);
@@ -695,11 +724,12 @@ function wxCard(){
   h += '</div>';
   if(live.wxErr) h += '<p class="small" style="color:var(--warn);margin-top:8px">' + esc(live.wxErr) + '，目前顯示的是舊資料。</p>';
   h += '<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="chip" data-wxref="1">' + (live.wxBusy?'更新中…':'立即更新') + '</button><span class="small">資料來源 Open-Meteo，每 10 分鐘自動更新。</span></div></div>';
+  h += iceCard(d);
   const R = roadRisk(d), lab = ["低","中","高"][R.lv], cls = R.lv===0?"free":"";
-  h += '<div class="card"><div class="hot"><h2>路面狀況（依天氣推估）</h2><span class="tag ' + cls + '">結冰／降雪風險：' + lab + '</span></div><ul class="tl" style="margin-top:6px">';
+  h += '<div class="card"><div class="hot"><h2>行車提醒與即時路況連結</h2><span class="tag ' + cls + '">結冰／降雪風險：' + lab + '</span></div><ul class="tl" style="margin-top:6px">';
   R.why.forEach(x => { h += '<li><div class="t none">·</div><div class="x">' + esc(x) + '</div></li>'; });
-  h += '</ul><p class="small" style="margin-top:6px"><b>這不是即時塞車資訊。</b>即時車況請看下面的連結，它們由各單位提供。</p><div class="links">';
-  h += '<a href="https://www.google.com/maps/@' + L.lat + ',' + L.lon + ',12z/data=!5m1!1e1" target="_blank" rel="noopener">Google 地圖車流（紅黃綠）</a><a href="https://www.jartic.or.jp/" target="_blank" rel="noopener">JARTIC 交通資訊</a><a href="http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm" target="_blank" rel="noopener">北海道開發局 道路資訊</a></div></div>';
+  h += '</ul><p class="small" style="margin-top:6px"><b>目前沒有免費公開的即時塞車資料可以直接放進頁面。</b>真正的即時車況、封路、攝影機畫面，請按下面這些官方來源的連結。</p><div class="links">';
+  h += '<a href="https://www.google.com/maps/@' + L.lat + ',' + L.lon + ',12z/data=!5m1!1e1" target="_blank" rel="noopener">Google 地圖車流（紅黃綠）</a><a href="https://www.jartic.or.jp/" target="_blank" rel="noopener">JARTIC 交通資訊</a><a href="https://www.drivetraffic.jp/" target="_blank" rel="noopener">ドラとら 高速道路塞車、封閉、攝影機（日文）</a><a href="http://info-road.hdb.hkd.mlit.go.jp/RoadInfo/index.htm" target="_blank" rel="noopener">北海道開發局 道路資訊</a></div></div>';
   return h;
 }
 function hav(a,b,c,d){ const R = 6371000, r = x => x*Math.PI/180, dl = r(c-a), dn = r(d-b); const k = Math.sin(dl/2)**2 + Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)**2; return 2*R*Math.asin(Math.sqrt(k)); }
@@ -760,8 +790,65 @@ document.addEventListener("click", e => {
   else if(d.pksearch){ loadPk(); }
 });
 
+/* ---------- 緊急 ---------- */
+const tel = n => 'tel:' + n.replace(/[^+\d#]/g, "").replace(/#/g, "%23");
+function sosBtn(num, label, sub, big){
+  return '<a href="' + tel(num) + '" class="sosb' + (big?' big':'') + '"><span class="sn">' + esc(num) + '</span><span class="sl"><b>' + esc(label) + '</b>' + (sub ? '<br><span class="small">' + esc(sub) + '</span>' : '') + '</span><span class="sc">撥打</span></a>';
+}
+const GUIDE = [
+ ["🚗","交通事故（含租車）",["先停車、開危險警示燈，人離開車道到安全處（高速公路要到護欄外）。","有人受傷：打 119。","不論輕重都要打 110 報警，沒有警方的事故證明，保險和租車賠償可能無法處理。","打電話給租車公司（Times），照他們的指示做。","拍照：車損、現場、對方車牌，記下對方姓名和電話。不要私下和解，不要先付錢。","等警察到場，不要自己離開。"]],
+ ["🦌","撞到鹿或其他動物",["停車、開危險警示燈，不要靠近受傷的動物。","打 110 報警，再通知租車公司，一樣要有警方處理紀錄。","拍下車損與現場。夜間與清晨最危險，日落後盡量不開山路。"]],
+ ["🌨️","暴風雪、被困在車上",["不要棄車離開。先確認位置，打 110 或 119 說明，也可以通知租車公司。","要開暖氣時，先清掉排氣管周圍的積雪，並間歇開、開一點車窗通風（一氧化碳中毒很危險）。","省手機電量，穿上所有保暖衣物。","道路積雪、落石、倒木等路況問題可打 #9910（道路緊急ダイヤル）。"]],
+ ["🔧","車子故障、爆胎、沒電",["開危險警示燈，慢慢移到路肩或安全處，人離開車道。","打租車合約上的 24 小時救援電話，說明車牌、位置、狀況。","自己不要在高速公路上修車。"]],
+ ["🌋","地震、海嘯",["在室內：保護頭部，遠離窗戶與高處掉落物，不要急著衝出去。","開車中：不要急煞，開危險警示燈慢慢靠邊停，等搖晃停止，收聽廣播或手機警報。","在海邊或河口感到強烈或長時間搖晃，或收到警報：立刻往高處走，不要等官方警報。","可裝 JNTO 的 Safety tips App，會用多語言推播災害資訊。"]],
+ ["🏥","急病或受傷",["嚴重或不確定：直接打 119。","輕症：請飯店櫃台幫忙找醫院，或打 JNTO 旅客熱線 050-3816-2787（24 小時，有中文）。","帶護照、健保卡、保險資料。海外就醫收據和診斷書留正本，回台申請旅平險理賠用。","泡溫泉頭暈、不舒服：立刻出水坐下，叫人幫忙；昏倒打 119。"]],
+ ["🛂","遺失護照或財物",["先到最近的警察局（派出所）報案，取得遺失或被盜證明。","聯絡台北駐日經濟文化代表處札幌分處，補發護照或入國證明。","信用卡遺失：打卡片背面的發卡行 24 小時電話掛失。"]]
+];
+function viewSos(){
+  const my = sget("hk26-sos") || "";
+  let h = '<div class="note" style="border-color:var(--warn)"><b>緊急時：</b>先確保人身安全，再打電話。日本的急救電話在日本境內<b>免費、不用加區碼</b>，用手機直接撥即可。</div>';
+  h += '<div class="card"><h2>最緊急（日本境內）</h2><div style="margin-top:8px">' +
+    sosBtn("119","救護車、火災","說「救急です」（kyūkyū desu，要救護車）、「火事です」（kaji desu，火災）。再說地點。",1) +
+    sosBtn("110","警察、交通事故、事件","說「事故です」（jiko desu，事故）或「事件です」（jiken desu）。",1) +
+    sosBtn("118","海上、湖上事故","海上保安廳，船難、落水。") + '</div>' +
+    '<p class="small" style="margin-top:8px">聽不懂日語時說「English, please」。部分地區可轉接通譯，但不保證。電話接通後先報<b>地點、發生什麼事、幾個人受傷</b>。</p></div>';
+  h += '<div class="card"><h2>報地點（下面的按鈕會顯示座標）</h2><button class="chip on" data-sosloc="1" style="width:100%">顯示我目前的位置</button><div id="sosloc" class="small" style="margin-top:8px">按下去需要允許定位。沒有定位時，就說附近的店名、路名或看板。</div></div>';
+  h += '<div class="card"><h2>中文、英文協助</h2><div style="margin-top:8px">' +
+    sosBtn("050-3816-2787","日本旅客熱線（JNTO）","24 小時，英、中、韓文。找醫院、翻譯、旅遊中的各種困難。") +
+    sosBtn("0570-000-911","Japan Helpline","24 小時，英文為主的緊急協助，會幫你聯絡救援單位。") + '</div></div>';
+  h += '<div class="card"><h2>台灣駐外單位</h2><div style="margin-top:8px">' +
+    sosBtn("+81-11-222-2930","台北駐日經濟文化代表處札幌分處","北海道轄區，上班時間電話。") +
+    sosBtn("+81-80-1460-2568","札幌分處緊急聯絡電話","僅限急難重大事件，請勿用於一般詢問。") +
+    sosBtn("+886-800-085-095","外交部旅外國人急難救助","從日本撥打；台灣境內撥 0800-085-095。") + '</div><p class="small" style="margin-top:6px">電話來自外交部領事事務局網站，出發前建議再核對一次。</p></div>';
+  h += '<div class="card"><h2>租車與道路</h2><div style="margin-top:8px">' +
+    sosBtn("0123-45-8756","Times 租車 新千歲機場店","取車與還車的店，電話可打。") +
+    sosBtn("#9910","道路緊急ダイヤル","通報道路上的落石、積雪、倒木、路面損壞等，手機直接撥。") +
+    sosBtn("#8139","JAF 道路救援","JAF 會員才免費，非會員要付費；租車一般請先打租車公司。") + '</div>' +
+    '<p class="small" style="margin-top:6px">Times 的 24 小時事故、故障救援電話沒有寫在訂單確認信裡，請看取車時給你的租車合約或鑰匙套，<b>取車時請拍照存起來</b>。</p></div>';
+  h += '<div class="card"><h2>住宿電話</h2><div style="margin-top:8px">' +
+    sosBtn("+81-166-25-8811","旭川 ART 旭川酒店","11/4") +
+    sosBtn("+81-134-31-6111","小樽 Stay\'s OTARU","11/7") +
+    sosBtn("+81-142-75-1085","洞爺湖 大洞爺村大和附樓","11/8") +
+    sosBtn("+81-138-59-2231","函館 湯濱溫泉酒店","11/9、11/10") + '</div><p class="small" style="margin-top:6px">札幌與支笏湖的電話我沒有查到，請看訂房確認信。</p></div>';
+  h += '<div class="card"><h2>情境怎麼辦</h2>';
+  GUIDE.forEach(g => { h += '<details style="border-top:1px solid var(--line);padding:8px 0"><summary style="cursor:pointer;font-size:16px"><b>' + g[0] + ' ' + g[1] + '</b></summary><ol style="margin:8px 0 0;padding-left:22px">'; g[2].forEach(x => { h += '<li style="margin:4px 0">' + esc(x) + '</li>'; }); h += '</ol></details>'; });
+  h += '</div>';
+  h += '<div class="card"><h2>我的緊急資料</h2><p class="small">血型、過敏、慢性病與用藥、保險公司電話與保單號、台灣緊急聯絡人。<b>只存在這支手機</b>，不會上傳。</p><textarea id="sosmy" class="inp" rows="6" style="width:100%;margin-top:6px" placeholder="例如：\n血型 O+，無藥物過敏\n旅平險：○○保險 +886-2-xxxx，保單號 xxxx\n緊急聯絡人：○○ +886-9xx-xxx-xxx">' + esc(my) + '</textarea><p class="small" id="sosmsg" style="margin-top:4px"></p></div>';
+  return h;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-sosloc]"); if(!b) return; const box = $("#sosloc"); if(!box) return;
+  if(!navigator.geolocation){ box.textContent = "這個瀏覽器不支援定位。"; return; }
+  box.textContent = "定位中…";
+  navigator.geolocation.getCurrentPosition(p => {
+    const la = p.coords.latitude.toFixed(5), lo = p.coords.longitude.toFixed(5);
+    box.innerHTML = '<div style="font-size:18px"><b>' + la + ', ' + lo + '</b></div><div>誤差約 ' + Math.round(p.coords.accuracy) + ' 公尺</div><div class="links" style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=' + la + ',' + lo + '" target="_blank" rel="noopener">在 Google 地圖打開（可截圖或分享給救援人員）</a></div><div class="small" style="margin-top:4px">英文可說：I am at latitude ' + la + ', longitude ' + lo + '.</div>';
+  }, () => { box.textContent = "無法取得定位（可能被拒絕或沒有訊號）。請說附近的店名、路名或看板。"; }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+});
+document.addEventListener("input", e => { if(e.target.id==="sosmy"){ sset("hk26-sos", e.target.value); const m = $("#sosmsg"); if(m) m.textContent = "已儲存在這支手機。"; } });
+
 /* ---------- 繪製與事件 ---------- */
-const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo};
+const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo, sos:viewSos};
 function render(keepScroll){
   $("#main").innerHTML = VIEWS[st.tab]();
   $("#nav").innerHTML = TABS.map(t => '<button data-tab="' + t[0] + '" class="' + (st.tab===t[0]?'on':'') + '"' + (st.tab===t[0]?' aria-current="page"':'') + '>' + t[1] + '</button>').join("");
