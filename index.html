@@ -522,7 +522,7 @@ function viewFood(){
 
 function viewWx(){
   setTimeout(() => loadWx(false), 0);
-  let h = wxCard();
+  let h = wxCard() + camCard();
   h += '<div class="note">以下是氣象廳 1991–2020 的 11 月平均值（整月平均，不是逐日）。</div>';
   h += '<div class="card"><h2>各城市 11 月平均</h2><div class="table-wrap" style="margin-top:6px"><table><tr><th>地點</th><th>高 ℃</th><th>低 ℃</th><th>降水 mm</th><th>初雪平年日</th></tr>';
   CITIES.forEach(c => { h += '<tr><td><b>' + c[0] + '</b></td><td>' + c[1] + '</td><td>' + c[2] + '</td><td>' + c[3] + '</td><td>' + c[4] + '</td></tr>'; });
@@ -804,13 +804,13 @@ document.addEventListener("click", e => {
 /* ---------- 緊急 ---------- */
 const tel = n => 'tel:' + n.replace(/[^+\d#]/g, "").replace(/#/g, "%23");
 function sayLang(t){ return /[ぁ-んァ-ン]/.test(t) ? "ja-JP" : /[A-Za-z]{3}/.test(t) ? "en-US" : "zh-TW"; }
-function sayBtn(t){ const clean = t.replace(/[〇○]+/g, "").replace(/\s+/g, " ").trim(); return '<button class="lnk say" data-say="' + encodeURIComponent(clean) + '" aria-label="播放發音" style="font-size:22px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">🔊</button>'; }
+function sayBtn(t, lang){ const clean = t.replace(/[〇○]+/g, "").replace(/\s+/g, " ").trim(); return '<button class="lnk say" data-say="' + encodeURIComponent(clean) + '"' + (lang ? ' data-lang="' + lang + '"' : '') + ' aria-label="播放發音" style="font-size:22px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">🔊</button>'; }
 function sayIt(text, btn){
   const msg = $("#saymsg");
   if(!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined"){ if(msg) msg.textContent = "這個瀏覽器不支援發音。"; return; }
   try{
     const syn = window.speechSynthesis; syn.cancel();
-    const u = new SpeechSynthesisUtterance(text), lang = sayLang(text); u.lang = lang; u.rate = 0.85; u.volume = 1;
+    const u = new SpeechSynthesisUtterance(text), lang = (btn && btn.dataset && btn.dataset.lang) || sayLang(text); u.lang = lang; u.rate = 0.85; u.volume = 1;
     const v = syn.getVoices().filter(x => x.lang && x.lang.replace("_","-").toLowerCase().indexOf(lang.slice(0,2).toLowerCase()) === 0);
     const pick = v.find(x => x.lang.replace("_","-").toLowerCase() === lang.toLowerCase()) || v[0]; if(pick) u.voice = pick;
     if(msg) msg.textContent = (pick || lang!=="ja-JP") ? "" : "手機沒有找到日語語音。到「設定 > 輔助使用 > 語音內容 > 聲音」下載日文聲音。";
@@ -1138,23 +1138,60 @@ const TALK = [
   ["三千円です。","San-zen en desu.","3,000 日圓。"],["今、何時ですか。","Ima, nan-ji desu ka.","現在幾點？"],["〇時〇分です。","○-ji ○-fun desu.","○ 點 ○ 分。"],["今日、明日、明後日","Kyō, ashita, asatte","今天、明天、後天"],["一人、二人、三人","Hitori, futari, san-nin","1 人、2 人、3 人"]],
   hear:[["〇〇円です。","○○-en desu.","○○ 日圓。"],["〇時に閉まります。","○-ji ni shimarimasu.","○ 點打烊。"]]}
 ];
+const JA_DICT = [["便利商店","コンビニ"],["超級市場","スーパー"],["超市","スーパー"],["百貨公司","デパート"],["加油站","ガソリンスタンド"],["停車場","駐車場"],["休息站","道の駅"],["高速公路","高速道路"],["遊客中心","観光案内所"],["旅客中心","観光案内所"],["計程車","タクシー"],["租車","レンタカー"],["藥妝店","ドラッグストア"],["藥局","薬局"],["醫院","病院"],["診所","クリニック"],["警察局","警察署"],["派出所","交番"],["郵局","郵便局"],["銀行","銀行"],["提款機","ATM"],["飯店","ホテル"],["旅館","旅館"],["溫泉","温泉"],["大浴場","大浴場"],["機場","空港"],["車站","駅"],["公車站","バス停"],["公車","バス"],["電車","電車"],["地鐵","地下鉄"],["廁所","トイレ"],["洗手間","トイレ"],["櫃台","フロント"],["行李","荷物"],["早餐","朝食"],["晚餐","夕食"],["午餐","昼食"],["菜單","メニュー"],["餐廳","レストラン"],["拉麵","ラーメン"],["壽司","寿司"],["咖啡","コーヒー"],["啤酒","ビール"],["牛奶","牛乳"],["開水","お水"],["水","水"],["伴手禮","お土産"],["免稅","免税"],["地圖","地図"],["收據","領収書"],["雨傘","傘"],["手機充電","スマホの充電"],["充電器","充電器"],["藥","薬"],["護照","パスポート"],["信用卡","クレジットカード"],["現金","現金"],["出口","出口"],["入口","入口"],["哪裡","どこ"],["多少錢","いくら"],["餐券","食券"],["雪胎","スタッドレスタイヤ"],["路","道"]];
+const FILLS = jget("hk26-fills", {}), PEND = {};
+function fullToHalf(t){ return t.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 65248)); }
+function toJaLocal(src){ // 回傳日文，或 null 表示需要線上翻譯
+  const t = fullToHalf(src.trim()); if(!t) return "";
+  if(/[ぁ-んァ-ン]/.test(t)) return t;                   // 已經有日文假名
+  if(/^[0-9][0-9.,:\s]*$/.test(t)) return t;               // 純數字
+  let r = t, hit = false; JA_DICT.slice().sort((x,y) => y[0].length - x[0].length).forEach(d => { if(r.indexOf(d[0]) >= 0){ r = r.split(d[0]).join(d[1]); hit = true; } });
+  if(hit && !/[A-Za-z]{3,}/.test(r)) return r;
+  return null;
+}
+async function toJaOnline(src){
+  const t = fullToHalf(src.trim()), lp = /[A-Za-z]/.test(t) && !/[一-鿿]/.test(t) ? "en|ja" : "zh-TW|ja";
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+  try{ const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(t) + "&langpair=" + encodeURIComponent(lp), {signal:ctl.signal}); if(!r.ok) throw 0; const d = await r.json();
+    const x = d && d.responseData && d.responseData.translatedText; if(!x || /MYMEMORY|INVALID|QUERY LENGTH/i.test(x)) throw 0; return x.replace(/[。.!！]+$/, "").trim(); }
+  catch(e){ return null; } finally { clearTimeout(to); }
+}
+function splitFill(src, n){ return n>1 ? src.trim().split(/[\s、,，/／]+/).filter(Boolean) : [src.trim()]; }
+async function setFill(key, src, n){
+  src = src.trim(); if(!src){ delete FILLS[key]; sset("hk26-fills", JSON.stringify(FILLS)); render(true); return; }
+  const parts = splitFill(src, n), out = parts.map(x => ({src:x, ja:toJaLocal(x)})), need = out.filter(x => x.ja===null);
+  if(need.length){ PEND[key] = true; FILLS[key] = {src:src, parts:out.map(x => ({src:x.src, ja:x.ja||""})), how:"pending"}; render(true);
+    for(const x of out){ if(x.ja===null){ x.ja = await toJaOnline(x.src); x.online = true; } } delete PEND[key]; }
+  const ok = out.every(x => x.ja);
+  FILLS[key] = {src:src, parts:out.map(x => ({src:x.src, ja:x.ja||"", online:!!x.online})), how: ok ? (out.some(x => x.online) ? "online" : "local") : "fail"};
+  sset("hk26-fills", JSON.stringify(FILLS)); render(true);
+}
+function fillSentence(t, vals){ let i = 0; return t.replace(/[〇○]+/g, m => (vals && i < vals.length && vals[i]) ? vals[i++] : (i++, m)); }
+function talkRow(p, key, big){
+  const n = (p[0].match(/[〇○]+/g) || []).length, F = FILLS[key], pj = F && F.parts ? F.parts.map(x => x.ja) : null, ps = F && F.parts ? F.parts.map(x => x.src) : null;
+  const jp = fillSentence(p[0], pj), rom = fillSentence(p[1], pj), zh = fillSentence(p[2], ps);
+  let h = '<div style="padding:6px 0;border-top:1px solid var(--line)"><div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center"><div><div style="font-size:' + (big?17:16) + 'px;font-weight:600">' + esc(jp) + '</div><div class="small">' + esc(rom) + '</div><div class="small">' + esc(zh) + '</div></div>' + sayBtn(jp, "ja-JP") + '</div>';
+  if(n){
+    h += '<div style="display:flex;gap:6px;align-items:center;margin-top:6px"><label class="small" for="f_' + key + '" style="white-space:nowrap">〇〇 填：</label><input id="f_' + key + '" data-fill="' + key + '" data-n="' + n + '" class="inp" placeholder="' + (n>1 ? '依序填，用空白隔開' : '中文、英文、數字、日文都可以') + '" value="' + esc(F ? F.src : "") + '" style="flex:1;min-width:0;padding:6px 8px"></div>';
+    if(F){ h += '<div class="small" style="margin-top:3px">' + (PEND[key] ? '翻成日文中…' : F.how==="fail" ? '有的詞翻不出來（可能沒網路或詞太特別）。請直接填日文，或用 Google 翻譯。' : '→ 日文：<b>' + esc(F.parts.map(x => x.ja).join("、")) + '</b>' + (F.how==="online" ? '（線上翻譯，專有名詞可能不準，可直接改填日文）' : '')) + '</div>'; }
+  }
+  return h + '</div>';
+}
 function viewTalk(){
   const cur = TALK.find(x => x.id===sget("hk26-talk")) || TALK[0];
-  const FILL = (sget("hk26-fill") || "").trim(), ft = t => FILL ? t.replace(/[〇○]+/g, FILL) : t;
   let h = '<p class="small" id="saymsg" style="color:var(--warn);margin:0"></p>';
-  h += '<div class="note">每句右邊的 🔊 會用手機語音念出來，可以直接播給對方聽。句子裡的「〇〇」換成你要說的地方或數字。念不出來時，把手機給對方看日文就好。</div>';
-  h += '<div class="card" style="margin-bottom:8px"><label for="fillin"><b>〇〇 要換成：</b></label><input id="fillin" class="inp" placeholder="例如：トイレ、札幌駅、ガソリンスタンド、3" value="' + esc(FILL) + '" style="width:100%;margin-top:6px"><p class="small" style="margin-top:4px">填好按完成（Enter），句子裡的 〇〇 會換成你填的字，🔊 也會念出來。可填日文店名、地名或數字。</p></div>';
+  h += '<div class="note">每句右邊的 🔊 會用手機的日語語音念出來，可以直接播給對方聽。句子裡有「〇〇」的，在句子下面填你要說的詞，<b>中文、英文、數字都可以</b>，會自動換成日文，只套用在那一句。</div>';
   h += '<div class="chips" style="margin:8px 0">';
   TALK.forEach(g => { h += '<button class="chip' + (g.id===cur.id?' on':'') + '" data-talk="' + g.id + '"><b>' + g.ic + '</b><span>' + g.n + '</span></button>'; });
   h += '</div><div class="card"><h2>' + cur.ic + ' ' + cur.n + '：你可以這樣說</h2>';
-  cur.say.forEach(p => { h += '<div style="padding:6px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center"><div><div style="font-size:17px;font-weight:600">' + esc(ft(p[0])) + '</div><div class="small">' + esc(ft(p[1])) + '</div><div class="small">' + esc(p[2]) + '</div></div>' + sayBtn(ft(p[0])) + '</div>'; });
+  cur.say.forEach((p,i) => { h += talkRow(p, cur.id + "s" + i, 1); });
   h += '</div>';
   if(cur.hear && cur.hear.length){ h += '<div class="card"><h2>對方可能會這樣說</h2><p class="small">聽到時可以對照意思，🔊 可以先聽聽看長什麼樣子。</p>';
-    cur.hear.forEach(p => { h += '<div style="padding:6px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center"><div><div style="font-size:16px;font-weight:600">' + esc(ft(p[0])) + '</div><div class="small">' + esc(ft(p[1])) + '</div><div class="small">' + esc(p[2]) + '</div></div>' + sayBtn(ft(p[0])) + '</div>'; });
+    cur.hear.forEach((p,i) => { h += talkRow(p, cur.id + "h" + i, 0); });
     h += '</div>'; }
   return h + '<p class="small">緊急狀況的句子在「緊急」分頁。</p>';
 }
-document.addEventListener("change", e => { if(e.target.id==="fillin"){ sset("hk26-fill", e.target.value); render(true); } });
+document.addEventListener("change", e => { const t = e.target; if(t && t.dataset && t.dataset.fill){ setFill(t.dataset.fill, t.value, +t.dataset.n || 1); } });
 document.addEventListener("click", e => { const b = e.target.closest("[data-talk]"); if(!b) return; sset("hk26-talk", b.dataset.talk); render(true); });
 
 
@@ -1176,6 +1213,46 @@ function updateHeaderWx(){
 }
 tickClock(); setInterval(tickClock, 1000);
 updateHeaderWx(); setTimeout(() => loadWx(false), 300); setInterval(() => { loadWx(false); updateHeaderWx(); }, 600000);
+
+/* ---------- 附近道路攝影機 ---------- */
+const CAMS = {
+ stv:{n:"STV 北海道即時攝影機（輪播）", t:"yt", d:"STV 札幌電視台的直播，約每幾秒輪播札幌大通公園、新千歲機場、小樽、旭川、函館等地。看的是城市街景，不是固定路段。", yt:"UCGrZAL2OKyKHj5flMIVU72A", page:"https://www.youtube.com/channel/UCGrZAL2OKyKHj5flMIVU72A/live"},
+ nakayama:{n:"中山峠（國道 230 號）", t:"img", d:"札幌往洞爺湖、定山溪的山路，冬天容易積雪結冰。HBC 北海道放送的靜態照片。", src:"https://www.hbc.co.jp/weather/roadcamera/current/picture/970000000520.jpg", page:"https://www.hbc.co.jp/info-cam/nakayama.html"},
+ bifue:{n:"美笛峠（國道 276 號）", t:"img", d:"支笏湖與洞爺湖之間的山路。HBC 北海道放送的靜態照片。", src:"https://www.hbc.co.jp/weather/roadcamera/current/picture/970000000920.jpg", page:"https://www.hbc.co.jp/info-cam/bifue.html"},
+ inaho:{n:"稲穂峠（國道 5 號）", t:"img", d:"小樽往內陸、洞爺湖方向的山路。HBC 北海道放送的靜態照片。", src:"https://www.hbc.co.jp/weather/roadcamera/current/picture/970000000030.jpg", page:"https://www.hbc.co.jp/info-cam/inahotoge.html"},
+ tanuki:{n:"札幌狸小路 8 丁目（雪路狀況）", t:"link", d:"札幌市區的雪路畫面（YouTube 直播，連結可能隨直播更新）。", page:"https://www.youtube.com/watch?v=TPIzbMwlrOI"},
+ satsutaru:{n:"札樽自動車道（札幌新道、石狩街道交叉口）", t:"link", d:"札幌往小樽的高速道路，YouTube 頻道直播。", page:"https://www.youtube.com/@livecam_sapporo/streams"}
+};
+const CAM_BY_PLACE = {asa:["stv"], bie:["stv"], sap:["nakayama","tanuki","satsutaru","stv"], ota:["inaho","satsutaru","stv"], toy:["nakayama","inaho","bifue"], hak:["stv"], shi:["bifue","stv"], chi:["bifue","stv"]};
+const camSt = {sel:{}, yt:{}, t:0};
+function camPlaceId(){
+  const id = curPlaceId(); if(id!=="gps") return id; if(!live.gps) return "sap";
+  let best = "sap", bd = 1e12; PLACES.forEach(p => { const d = hav(live.gps[0], live.gps[1], p[2], p[3]); if(d<bd){ bd = d; best = p[0]; } }); return best;
+}
+function camCard(){
+  const pid = camPlaceId(), list = CAM_BY_PLACE[pid] || ["stv"], sel = (camSt.sel[pid] && list.indexOf(camSt.sel[pid])>=0) ? camSt.sel[pid] : list[0], C = CAMS[sel];
+  const pname = (PLACES.find(p => p[0]===pid) || ["","附近"])[1];
+  let h = '<div class="card"><div class="hot"><h2>附近的道路攝影機</h2><span class="tag">' + esc(pname) + '</span></div>';
+  if(list.length>1){ h += '<div class="chips" style="margin:6px 0">'; list.forEach(k => { h += '<button class="chip' + (k===sel?' on':'') + '" data-camsel="' + pid + '|' + k + '" style="min-width:0"><span>' + esc(CAMS[k].n.split("（")[0]) + '</span></button>'; }); h += '</div>'; }
+  h += '<p style="margin-top:6px"><b>' + esc(C.n) + '</b></p><p class="small">' + esc(C.d) + '</p>';
+  if(C.t==="img"){
+    h += '<div style="margin-top:8px;border-radius:10px;overflow:hidden;background:var(--chip);min-height:120px"><img alt="' + esc(C.n) + ' 目前畫面" src="' + C.src + '?t=' + camSt.t + '" style="width:100%;display:block" onerror="this.outerHTML=\'<div style=&quot;padding:16px&quot; class=&quot;small&quot;>圖片載入失敗（來源不允許嵌入或沒有網路），請按下面的連結直接看。</div>\'"></div>';
+    h += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="chip on" data-camreload="1">重新載入畫面</button></div>';
+  } else if(C.t==="yt"){
+    if(camSt.yt[sel]) h += '<div style="margin-top:8px;position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000"><iframe src="https://www.youtube-nocookie.com/embed/live_stream?channel=' + C.yt + '&autoplay=1&mute=1" title="' + esc(C.n) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+    else h += '<button class="chip on" data-camyt="' + sel + '" style="width:100%;margin-top:8px">▶ 載入直播（會用行動網路流量）</button>';
+  }
+  h += '<div class="links" style="margin-top:8px"><a href="' + C.page + '" target="_blank" rel="noopener">' + (C.t==="img" ? '在 HBC 網站打開' : '在 YouTube 打開') + '</a></div>';
+  h += '<p class="small" style="margin-top:6px">靜態照片是來源網站最後上傳的畫面，更新時間以來源為準，不一定是「現在」，冬季山路請同時看天氣與結冰預測。直播如果顯示無法播放，請按「在 YouTube 打開」。攝影機是別人的服務，隨時可能停止或更換位置。</p></div>';
+  return h;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-camsel],[data-camyt],[data-camreload]"); if(!b) return; const d = b.dataset;
+  if(d.camsel){ const x = d.camsel.split("|"); camSt.sel[x[0]] = x[1]; }
+  else if(d.camyt){ camSt.yt[d.camyt] = true; }
+  else if(d.camreload){ camSt.t = Date.now(); }
+  render(true);
+});
 
 /* ---------- 繪製與事件 ---------- */
 const VIEWS = {trip:viewTrip, stay:viewStay, food:viewFood, wx:viewWx, park:viewPark, cost:viewCost, todo:viewTodo, talk:viewTalk, sos:viewSos};
